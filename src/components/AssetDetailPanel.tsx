@@ -344,7 +344,9 @@ export default function AssetDetailPanel({
   const baseType = category?.baseType ?? 'andet'
   const tabs = getTabs(baseType)
 
-  const qrValue = `MAINTAINIQ:ASSET:${asset.code}:${asset.id}`
+  // QR value is IMMUTABLE — based solely on asset.id, which never changes.
+  // Renaming, recoding or moving the asset does NOT change the QR code.
+  const qrValue = `MAINTAINIQ:${asset.id}`
 
   function handleSave() {
     updateAsset(asset.id, draft)

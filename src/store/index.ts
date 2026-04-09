@@ -2,11 +2,12 @@ import { create } from 'zustand'
 import { addDays } from 'date-fns'
 import type {
   WorkOrder, WorkOrderStatus, Priority, WorkOrderCategory,
-  SparePart, PMTask, LogEntry, User, Asset, AssetCategory, Supplier,
+  SparePart, PMTask, LogEntry, User, Asset, AssetCategory, LookupTable, LookupItem, Supplier,
   AppNotification, Settings, WidgetConfig,
 } from '../types'
 import {
-  USERS, ASSETS, ASSET_CATEGORIES, WORK_ORDERS, SPARE_PARTS, SUPPLIERS, PM_TASKS, LOG_ENTRIES,
+  USERS, ASSETS, ASSET_CATEGORIES, LOOKUP_TABLES,
+  WORK_ORDERS, SPARE_PARTS, SUPPLIERS, PM_TASKS, LOG_ENTRIES,
 } from '../data/mockData'
 
 interface AppState {
@@ -33,6 +34,11 @@ interface AppState {
   createAssetCategory: (cat: Omit<AssetCategory, 'id' | 'isSystem'>) => string
   updateAssetCategory: (id: string, patch: Partial<AssetCategory>) => void
   deleteAssetCategory: (id: string) => void
+  // Actions — Lookup Tables
+  lookupTables: LookupTable[]
+  addLookupItem: (tableId: string, item: Omit<LookupItem, 'id'>) => void
+  updateLookupItem: (tableId: string, itemId: string, patch: Partial<LookupItem>) => void
+  deleteLookupItem: (tableId: string, itemId: string) => void
   // Actions — Work Orders
   createWorkOrder: (wo: Omit<WorkOrder, 'id' | 'createdAt' | 'tasks' | 'comments' | 'timeLog' | 'spareParts' | 'history'>) => string
   updateWorkOrder: (id: string, patch: Partial<WorkOrder>) => void
@@ -76,6 +82,7 @@ export const useStore = create<AppState>((set, get) => ({
   users: USERS,
   assets: ASSETS,
   assetCategories: ASSET_CATEGORIES,
+  lookupTables: LOOKUP_TABLES,
   workOrders: WORK_ORDERS,
   spareParts: SPARE_PARTS,
   suppliers: SUPPLIERS,
@@ -138,6 +145,34 @@ export const useStore = create<AppState>((set, get) => ({
   deleteAssetCategory: (id) => {
     set(s => ({
       assetCategories: s.assetCategories.filter(c => c.id !== id),
+    }))
+  },
+
+  addLookupItem: (tableId, item) => {
+    set(s => ({
+      lookupTables: s.lookupTables.map(t => {
+        if (t.id !== tableId) return t
+        const id = nextId('li', t.items.map(i => i.id))
+        return { ...t, items: [...t.items, { ...item, id }] }
+      }),
+    }))
+  },
+
+  updateLookupItem: (tableId, itemId, patch) => {
+    set(s => ({
+      lookupTables: s.lookupTables.map(t => {
+        if (t.id !== tableId) return t
+        return { ...t, items: t.items.map(i => i.id === itemId ? { ...i, ...patch } : i) }
+      }),
+    }))
+  },
+
+  deleteLookupItem: (tableId, itemId) => {
+    set(s => ({
+      lookupTables: s.lookupTables.map(t => {
+        if (t.id !== tableId) return t
+        return { ...t, items: t.items.filter(i => i.id !== itemId) }
+      }),
     }))
   },
 

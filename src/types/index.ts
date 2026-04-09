@@ -227,6 +227,27 @@ export interface AppNotification {
   createdAt: string
 }
 
+// ─── Lookup tables ────────────────────────────────────────────────────────────
+
+export interface LookupItem {
+  id: string
+  name: string
+  color?: string      // tailwind color key
+  sortOrder: number
+  isSystem: boolean   // system items can be edited but not deleted
+  description?: string
+}
+
+export interface LookupTable {
+  id: string
+  key: string         // e.g. 'work_order_types'
+  name: string        // display name
+  description?: string
+  items: LookupItem[]
+}
+
+// ─── Widget / Settings ────────────────────────────────────────────────────────
+
 export interface WidgetConfig {
   id: string
   displayType: 'count' | 'percent' | 'pie' | 'bar'

@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react'
 import {
   ChevronRight, ChevronDown, Plus, X, MapPin, Cog,
-  Wrench, Factory, Box, Settings2,
+  Wrench, Factory, Box, Settings2, Printer,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
 import type { Asset, AssetType, AssetCategory } from '../types'
 import AssetDetailPanel from '../components/AssetDetailPanel'
+import QRPrintModal from '../components/QRPrintModal'
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -176,6 +177,8 @@ function AssetRow({
   activeWOCount,
   category,
   onClick,
+  selected,
+  onSelect,
 }: {
   asset: Asset
   depth: number
@@ -185,15 +188,29 @@ function AssetRow({
   activeWOCount: number
   category: AssetCategory | undefined
   onClick: () => void
+  selected: boolean
+  onSelect: (id: string, checked: boolean) => void
 }) {
   const isExpanded = expandedIds.has(asset.id)
   const colorCls = COLOR_CLASSES[category?.color ?? 'gray']
 
   return (
     <tr
-      className="border-b border-gray-50 dark:border-gray-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 cursor-pointer group"
+      className={clsx(
+        'border-b border-gray-50 dark:border-gray-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 cursor-pointer group',
+        selected && 'bg-blue-50/60 dark:bg-blue-900/20'
+      )}
       onClick={onClick}
     >
+      <td className="pl-3 pr-1 py-2.5 w-8">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={e => { e.stopPropagation(); onSelect(asset.id, e.target.checked) }}
+          onClick={e => e.stopPropagation()}
+          className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600"
+        />
+      </td>
       <td className="px-4 py-2.5">
         <div className="flex items-center" style={{ paddingLeft: `${depth * 20}px` }}>
           <button
@@ -252,6 +269,8 @@ export default function AssetTree() {
   const [filterCategoryId, setFilterCategoryId] = useState<string | null>(null)
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [showNewForm, setShowNewForm] = useState(false)
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
+  const [showPrintModal, setShowPrintModal] = useState(false)
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -301,6 +320,23 @@ export default function AssetTree() {
     ? assets.filter(a => a.categoryId === filterCategoryId).map(a => ({ asset: a, depth: 0 }))
     : buildRows(null, 0)
 
+  function handleSelect(id: string, checked: boolean) {
+    setCheckedIds(prev => {
+      const next = new Set(prev)
+      if (checked) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }
+
+  function handleSelectAll(checked: boolean) {
+    setCheckedIds(checked ? new Set(rows.map(r => r.asset.id)) : new Set())
+  }
+
+  const allChecked = rows.length > 0 && rows.every(r => checkedIds.has(r.asset.id))
+  const someChecked = rows.some(r => checkedIds.has(r.asset.id))
+  const checkedAssets = assets.filter(a => checkedIds.has(a.id))
+
   // Keep selected asset in sync after edits
   const liveSelectedAsset = selectedAsset
     ? assets.find(a => a.id === selectedAsset.id) ?? null
@@ -313,13 +349,24 @@ export default function AssetTree() {
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Oversigt</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">Aktivtræ — {assets.length} aktiver i alt</p>
         </div>
-        <button
-          onClick={() => setShowNewForm(true)}
-          className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
-        >
-          <Plus size={15} />
-          Ny enhed
-        </button>
+        <div className="flex items-center gap-2">
+          {someChecked && (
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-gray-700 dark:bg-gray-200 text-white dark:text-gray-900 text-sm font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-gray-300"
+            >
+              <Printer size={15} />
+              Print QR ({checkedIds.size})
+            </button>
+          )}
+          <button
+            onClick={() => setShowNewForm(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+          >
+            <Plus size={15} />
+            Ny enhed
+          </button>
+        </div>
       </div>
 
       {/* Category filter bar */}
@@ -361,6 +408,15 @@ export default function AssetTree() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-800">
+                <th className="pl-3 pr-1 py-2.5 w-8">
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    ref={el => { if (el) el.indeterminate = someChecked && !allChecked }}
+                    onChange={e => handleSelectAll(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600"
+                  />
+                </th>
                 <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 dark:text-gray-500">Navn</th>
                 <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 dark:text-gray-500">Kategori</th>
                 <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 dark:text-gray-500">Kritikalitet</th>
@@ -384,6 +440,8 @@ export default function AssetTree() {
                     activeWOCount={activeWOByAsset[asset.id] ?? 0}
                     category={assetCategories.find(c => c.id === asset.categoryId)}
                     onClick={() => setSelectedAsset(asset)}
+                    selected={checkedIds.has(asset.id)}
+                    onSelect={handleSelect}
                   />
                 ))
               )}
@@ -397,6 +455,14 @@ export default function AssetTree() {
         <AssetDetailPanel
           asset={liveSelectedAsset}
           onClose={() => setSelectedAsset(null)}
+        />
+      )}
+
+      {/* QR Print modal */}
+      {showPrintModal && (
+        <QRPrintModal
+          assets={checkedAssets}
+          onClose={() => setShowPrintModal(false)}
         />
       )}
 

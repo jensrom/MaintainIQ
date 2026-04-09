@@ -1,6 +1,115 @@
 import type {
-  User, Asset, AssetCategory, WorkOrder, SparePart, Supplier, PMTask, LogEntry
+  User, Asset, AssetCategory, LookupTable, WorkOrder, SparePart, Supplier, PMTask, LogEntry
 } from '../types'
+
+export const LOOKUP_TABLES: LookupTable[] = [
+  {
+    id: 'lt1', key: 'work_order_types', name: 'Vedligeholdelses typer',
+    description: 'Typer der bruges på arbejdsordrer og PM-opgaver',
+    items: [
+      { id: 'wt1', name: 'Forebyggende',  color: 'blue',   sortOrder: 1, isSystem: true,  description: 'Planlagt forebyggende vedligehold' },
+      { id: 'wt2', name: 'Afhjælpende',  color: 'red',    sortOrder: 2, isSystem: true,  description: 'Reaktivt afhjælpende vedligehold' },
+      { id: 'wt3', name: 'Inspektion',   color: 'purple', sortOrder: 3, isSystem: true,  description: 'Regelmæssig inspektion og tjek' },
+      { id: 'wt4', name: 'Projekt',      color: 'green',  sortOrder: 4, isSystem: true,  description: 'Projektbaserede opgaver' },
+      { id: 'wt5', name: 'Rengøring',    color: 'teal',   sortOrder: 5, isSystem: true,  description: 'Rengøring og sanitering' },
+      { id: 'wt6', name: 'Kalibrering',  color: 'amber',  sortOrder: 6, isSystem: false, description: 'Kalibrering af måleudstyr' },
+      { id: 'wt7', name: 'Validering',   color: 'indigo', sortOrder: 7, isSystem: false, description: 'GMP-validering' },
+    ],
+  },
+  {
+    id: 'lt2', key: 'priorities', name: 'Prioriteter',
+    description: 'Prioritetsniveauer på arbejdsordrer',
+    items: [
+      { id: 'pr1', name: 'Kritisk', color: 'red',    sortOrder: 1, isSystem: true },
+      { id: 'pr2', name: 'Høj',     color: 'orange', sortOrder: 2, isSystem: true },
+      { id: 'pr3', name: 'Normal',  color: 'blue',   sortOrder: 3, isSystem: true },
+      { id: 'pr4', name: 'Lav',     color: 'gray',   sortOrder: 4, isSystem: true },
+    ],
+  },
+  {
+    id: 'lt3', key: 'measurement_units', name: 'Aflæsningsenheder',
+    description: 'Enheder til målinger og forbrug',
+    items: [
+      { id: 'mu1',  name: 'stk',  sortOrder: 1,  isSystem: true },
+      { id: 'mu2',  name: 'kg',   sortOrder: 2,  isSystem: true },
+      { id: 'mu3',  name: 'g',    sortOrder: 3,  isSystem: true },
+      { id: 'mu4',  name: 'L',    sortOrder: 4,  isSystem: true },
+      { id: 'mu5',  name: 'mL',   sortOrder: 5,  isSystem: true },
+      { id: 'mu6',  name: 'm',    sortOrder: 6,  isSystem: true },
+      { id: 'mu7',  name: 'm²',   sortOrder: 7,  isSystem: true },
+      { id: 'mu8',  name: 'm³',   sortOrder: 8,  isSystem: true },
+      { id: 'mu9',  name: 'bar',  sortOrder: 9,  isSystem: true },
+      { id: 'mu10', name: '°C',   sortOrder: 10, isSystem: true },
+      { id: 'mu11', name: 'V',    sortOrder: 11, isSystem: true },
+      { id: 'mu12', name: 'A',    sortOrder: 12, isSystem: true },
+      { id: 'mu13', name: 'kW',   sortOrder: 13, isSystem: true },
+      { id: 'mu14', name: 'kWh',  sortOrder: 14, isSystem: true },
+      { id: 'mu15', name: 'rpm',  sortOrder: 15, isSystem: true },
+      { id: 'mu16', name: 'timer',sortOrder: 16, isSystem: false },
+    ],
+  },
+  {
+    id: 'lt4', key: 'currencies', name: 'Valuta',
+    description: 'Valutaer til økonomi og indkøb',
+    items: [
+      { id: 'cur1', name: 'DKK — Dansk krone',    sortOrder: 1, isSystem: true },
+      { id: 'cur2', name: 'EUR — Euro',            sortOrder: 2, isSystem: true },
+      { id: 'cur3', name: 'USD — Amerikans dollar',sortOrder: 3, isSystem: true },
+      { id: 'cur4', name: 'SEK — Svensk krone',    sortOrder: 4, isSystem: false },
+      { id: 'cur5', name: 'NOK — Norsk krone',     sortOrder: 5, isSystem: false },
+      { id: 'cur6', name: 'GBP — Britisk pund',    sortOrder: 6, isSystem: false },
+    ],
+  },
+  {
+    id: 'lt5', key: 'departments', name: 'Afdelinger',
+    description: 'Organisatoriske afdelinger',
+    items: [
+      { id: 'dep1', name: 'Produktion',     sortOrder: 1, isSystem: true },
+      { id: 'dep2', name: 'Vedligehold',    sortOrder: 2, isSystem: true },
+      { id: 'dep3', name: 'Kvalitet',       sortOrder: 3, isSystem: true },
+      { id: 'dep4', name: 'Logistik',       sortOrder: 4, isSystem: true },
+      { id: 'dep5', name: 'Teknik',         sortOrder: 5, isSystem: true },
+      { id: 'dep6', name: 'Administration', sortOrder: 6, isSystem: true },
+      { id: 'dep7', name: 'Sikkerhed',      sortOrder: 7, isSystem: false },
+    ],
+  },
+  {
+    id: 'lt6', key: 'accounts', name: 'Kontoer',
+    description: 'Budgetkontoer til registrering af omkostninger',
+    items: [
+      { id: 'acc1', name: 'PRD-001 — Produktion primær',   sortOrder: 1, isSystem: false },
+      { id: 'acc2', name: 'PRD-002 — Produktion sekundær', sortOrder: 2, isSystem: false },
+      { id: 'acc3', name: 'LOG-001 — Logistik',            sortOrder: 3, isSystem: false },
+      { id: 'acc4', name: 'TEK-001 — Teknik',              sortOrder: 4, isSystem: false },
+      { id: 'acc5', name: 'TEK-002 — Teknik reserve',      sortOrder: 5, isSystem: false },
+      { id: 'acc6', name: 'QC-001 — Kvalitet',             sortOrder: 6, isSystem: false },
+      { id: 'acc7', name: 'ADM-001 — Administration',      sortOrder: 7, isSystem: false },
+      { id: 'acc8', name: 'VED-001 — Vedligehold',         sortOrder: 8, isSystem: false },
+      { id: 'acc9', name: 'SIK-001 — Sikkerhed',           sortOrder: 9, isSystem: false },
+    ],
+  },
+  {
+    id: 'lt7', key: 'log_entry_types', name: 'Logbog — hændelsestyper',
+    description: 'Typer af hændelser i logbogen',
+    items: [
+      { id: 'le1', name: 'Observation', color: 'blue',   sortOrder: 1, isSystem: true },
+      { id: 'le2', name: 'Fejl',        color: 'red',    sortOrder: 2, isSystem: true },
+      { id: 'le3', name: 'Reparation',  color: 'green',  sortOrder: 3, isSystem: true },
+      { id: 'le4', name: 'Inspektion',  color: 'purple', sortOrder: 4, isSystem: true },
+      { id: 'le5', name: 'Note',        color: 'gray',   sortOrder: 5, isSystem: true },
+    ],
+  },
+  {
+    id: 'lt8', key: 'severity_levels', name: 'Alvorlighedsniveauer',
+    description: 'Alvorlighedsniveauer til logbog og hændelser',
+    items: [
+      { id: 'sv1', name: 'Lav',     color: 'gray',   sortOrder: 1, isSystem: true },
+      { id: 'sv2', name: 'Medium',  color: 'blue',   sortOrder: 2, isSystem: true },
+      { id: 'sv3', name: 'Høj',     color: 'orange', sortOrder: 3, isSystem: true },
+      { id: 'sv4', name: 'Kritisk', color: 'red',    sortOrder: 4, isSystem: true },
+    ],
+  },
+]
 
 export const ASSET_CATEGORIES: AssetCategory[] = [
   { id: 'cat1', name: 'Lokationer og faciliteter', baseType: 'lokation', color: 'purple', icon: 'MapPin',   isSystem: true  },

@@ -12,6 +12,7 @@ import SpareParts from './screens/SpareParts'
 import Suppliers from './screens/Suppliers'
 import GuestPortal from './screens/GuestPortal'
 import Settings from './screens/Settings'
+import CMMSSettings from './screens/CMMSSettings'
 import UserManagement from './screens/UserManagement'
 import ApiReference from './screens/ApiReference'
 import { useStore } from './store'
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="leverandorer" element={<Suppliers />} />
           <Route path="gaesteportal" element={<GuestPortal />} />
           <Route path="indstillinger" element={<Settings />} />
+          <Route path="cmms-indstillinger" element={<CMMSSettings />} />
           <Route path="brugere" element={<UserManagement />} />
           <Route path="api" element={<ApiReference />} />
           <Route path="*" element={<Navigate to="/" replace />} />

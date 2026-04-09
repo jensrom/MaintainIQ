@@ -1,13 +1,7 @@
-import { useState } from 'react'
-import {
-  Moon, Sun, Bell, BellOff, FlaskConical, Layers, Plus, Pencil, Trash2, X, Check,
-  MapPin, Factory, Cog, Settings2, Wrench, Box,
-} from 'lucide-react'
+import { Moon, Sun, Bell, BellOff, FlaskConical, SlidersHorizontal } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
 import clsx from 'clsx'
 import { useStore } from '../store'
-import type { AssetCategory, AssetBaseType } from '../types'
-
-// ─── Toggle ──────────────────────────────────────────────────────────────────
 
 function Toggle({ checked, onChange, label, description, icon }: {
   checked: boolean
@@ -43,246 +37,6 @@ function Toggle({ checked, onChange, label, description, icon }: {
   )
 }
 
-// ─── Category management ──────────────────────────────────────────────────────
-
-const BASE_TYPE_OPTS: { value: AssetBaseType; label: string }[] = [
-  { value: 'site',     label: 'Site' },
-  { value: 'lokation', label: 'Lokation' },
-  { value: 'udstyr',   label: 'Udstyr / Maskine' },
-  { value: 'vaerktoj', label: 'Værktøj' },
-  { value: 'andet',    label: 'Andet' },
-]
-
-const COLOR_OPTS = [
-  { value: 'blue',   label: 'Blå' },
-  { value: 'purple', label: 'Lilla' },
-  { value: 'amber',  label: 'Gul' },
-  { value: 'orange', label: 'Orange' },
-  { value: 'green',  label: 'Grøn' },
-  { value: 'red',    label: 'Rød' },
-  { value: 'gray',   label: 'Grå' },
-  { value: 'slate',  label: 'Skifer' },
-]
-
-const ICON_OPTS = [
-  { value: 'MapPin',    label: 'Nål',      icon: <MapPin size={14} /> },
-  { value: 'Factory',   label: 'Fabrik',   icon: <Factory size={14} /> },
-  { value: 'Cog',       label: 'Tandhjul', icon: <Cog size={14} /> },
-  { value: 'Settings2', label: 'Maskine',  icon: <Settings2 size={14} /> },
-  { value: 'Wrench',    label: 'Nøgle',    icon: <Wrench size={14} /> },
-  { value: 'Box',       label: 'Boks',     icon: <Box size={14} /> },
-]
-
-const COLOR_BG: Record<string, string> = {
-  blue:   'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-  amber:  'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  orange: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
-  green:  'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  red:    'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  gray:   'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-  slate:  'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-}
-
-const ICON_MAP: Record<string, React.ReactNode> = {
-  MapPin:    <MapPin size={13} />,
-  Factory:   <Factory size={13} />,
-  Cog:       <Cog size={13} />,
-  Settings2: <Settings2 size={13} />,
-  Wrench:    <Wrench size={13} />,
-  Box:       <Box size={13} />,
-}
-
-function CategoryRow({
-  cat,
-  onEdit,
-  onDelete,
-}: {
-  cat: AssetCategory
-  onEdit: () => void
-  onDelete: () => void
-}) {
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const baseLabel = BASE_TYPE_OPTS.find(o => o.value === cat.baseType)?.label ?? cat.baseType
-
-  return (
-    <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800 last:border-0">
-      <div className="flex items-center gap-3">
-        <span className={clsx('inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium', COLOR_BG[cat.color])}>
-          {ICON_MAP[cat.icon]}
-          {cat.name}
-        </span>
-        <span className="text-xs text-gray-400">{baseLabel}</span>
-        {cat.isSystem && (
-          <span className="text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">System</span>
-        )}
-      </div>
-      <div className="flex items-center gap-1">
-        {confirmDelete ? (
-          <>
-            <span className="text-xs text-red-500 mr-1">Slet?</span>
-            <button onClick={onDelete} className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
-              <Check size={14} />
-            </button>
-            <button onClick={() => setConfirmDelete(false)} className="p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
-              <X size={14} />
-            </button>
-          </>
-        ) : (
-          <>
-            <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded">
-              <Pencil size={13} />
-            </button>
-            {!cat.isSystem && (
-              <button onClick={() => setConfirmDelete(true)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
-                <Trash2 size={13} />
-              </button>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-
-type CategoryFormData = Omit<AssetCategory, 'id' | 'isSystem'>
-
-function CategoryForm({
-  initial,
-  onSave,
-  onCancel,
-}: {
-  initial?: Partial<AssetCategory>
-  onSave: (data: CategoryFormData) => void
-  onCancel: () => void
-}) {
-  const [name, setName]         = useState(initial?.name ?? '')
-  const [baseType, setBaseType] = useState<AssetBaseType>(initial?.baseType ?? 'udstyr')
-  const [color, setColor]       = useState(initial?.color ?? 'blue')
-  const [icon, setIcon]         = useState(initial?.icon ?? 'Cog')
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!name.trim()) return
-    onSave({ name: name.trim(), baseType, color, icon })
-  }
-
-  return (
-    <form onSubmit={submit} className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 mt-2">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Navn *</label>
-          <input
-            className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            value={name} onChange={e => setName(e.target.value)} required placeholder="f.eks. Pumper"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Basetype</label>
-          <select
-            className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            value={baseType} onChange={e => setBaseType(e.target.value as AssetBaseType)}
-          >
-            {BASE_TYPE_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Farve</label>
-          <select
-            className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            value={color} onChange={e => setColor(e.target.value)}
-          >
-            {COLOR_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Ikon</label>
-          <select
-            className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            value={icon} onChange={e => setIcon(e.target.value)}
-          >
-            {ICON_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
-      </div>
-      {/* Preview */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-400">Forhåndsvisning:</span>
-        <span className={clsx('inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium', COLOR_BG[color])}>
-          {ICON_MAP[icon]}
-          {name || 'Ny kategori'}
-        </span>
-      </div>
-      <div className="flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-          Annuller
-        </button>
-        <button type="submit" className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-          Gem kategori
-        </button>
-      </div>
-    </form>
-  )
-}
-
-function AssetCategories() {
-  const { assetCategories, createAssetCategory, updateAssetCategory, deleteAssetCategory } = useStore()
-  const [showForm, setShowForm]           = useState(false)
-  const [editingId, setEditingId]         = useState<string | null>(null)
-
-  function handleCreate(data: Omit<AssetCategory, 'id' | 'isSystem'>) {
-    createAssetCategory(data)
-    setShowForm(false)
-  }
-
-  function handleUpdate(id: string, data: Omit<AssetCategory, 'id' | 'isSystem'>) {
-    updateAssetCategory(id, data)
-    setEditingId(null)
-  }
-
-  return (
-    <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 mb-4">
-      <div className="flex items-center justify-between pt-4 pb-2">
-        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Enhedskategorier</h2>
-        <button
-          onClick={() => { setShowForm(true); setEditingId(null) }}
-          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
-        >
-          <Plus size={13} /> Ny kategori
-        </button>
-      </div>
-
-      {assetCategories.map(cat => (
-        <div key={cat.id}>
-          <CategoryRow
-            cat={cat}
-            onEdit={() => { setEditingId(cat.id); setShowForm(false) }}
-            onDelete={() => deleteAssetCategory(cat.id)}
-          />
-          {editingId === cat.id && (
-            <CategoryForm
-              initial={cat}
-              onSave={data => handleUpdate(cat.id, data)}
-              onCancel={() => setEditingId(null)}
-            />
-          )}
-        </div>
-      ))}
-
-      {showForm && (
-        <CategoryForm
-          onSave={handleCreate}
-          onCancel={() => setShowForm(false)}
-        />
-      )}
-    </section>
-  )
-}
-
-// ─── Main screen ───────────────────────────────────────────────────────────────
-
 export default function Settings() {
   const { settings, updateSettings } = useStore()
 
@@ -297,6 +51,21 @@ export default function Settings() {
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Indstillinger</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">Konfigurér systemets udseende og adfærd</p>
       </div>
+
+      {/* Link to CMMS settings */}
+      <NavLink
+        to="/cmms-indstillinger"
+        className="flex items-center justify-between px-5 py-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 mb-4 hover:border-blue-300 dark:hover:border-blue-700 transition-colors group"
+      >
+        <div className="flex items-center gap-3">
+          <SlidersHorizontal size={18} className="text-blue-500" />
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">CMMS Indstillinger</p>
+            <p className="text-xs text-gray-400">Enhedskategorier, opslagstabeller, vedligeholds- og arbejdsordreindstillinger</p>
+          </div>
+        </div>
+        <span className="text-xs text-blue-500 font-medium">Åbn →</span>
+      </NavLink>
 
       {/* Appearance */}
       <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 mb-4">
@@ -321,9 +90,6 @@ export default function Settings() {
           icon={<FlaskConical size={16} />}
         />
       </section>
-
-      {/* Asset Categories */}
-      <AssetCategories />
 
       {/* Notifications */}
       <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5">

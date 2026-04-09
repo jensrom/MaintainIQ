@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import QRCode from 'react-qr-code'
 import {
-  X, Save, Wifi, WifiOff, ChevronDown, MapPin,
+  X, Save, Wifi, WifiOff, ChevronDown,
   ClipboardList, BarChart2, Users, Building2, Paperclip,
   Sliders, DollarSign, ScrollText, ShieldCheck, ShoppingCart,
   Trash2, Image,
@@ -317,6 +317,86 @@ function TabLog({ assetId }: { assetId: string }) {
   )
 }
 
+function TabOekonomi({ assetId }: { assetId: string }) {
+  const { workOrders, spareParts, users } = useStore()
+  const wos = workOrders.filter(wo => wo.assetId === assetId && wo.status !== 'Annulleret')
+
+  const rows = wos.map(wo => {
+    const laborCost = wo.timeLog.reduce((sum, t) => {
+      const user = users.find(u => u.id === t.userId)
+      return sum + t.hours * (user?.hourlyRate ?? 0)
+    }, 0)
+    const partsCost = wo.spareParts.reduce((sum, sp) => {
+      const part = spareParts.find(p => p.id === sp.sparePartId)
+      return sum + sp.quantity * (part?.price ?? 0)
+    }, 0)
+    return { wo, laborCost, partsCost, total: laborCost + partsCost }
+  })
+
+  const totalLabor = rows.reduce((s, r) => s + r.laborCost, 0)
+  const totalParts = rows.reduce((s, r) => s + r.partsCost, 0)
+  const grandTotal = totalLabor + totalParts
+
+  const fmt = (n: number) => n.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 })
+
+  if (rows.length === 0) {
+    return <p className="text-sm text-gray-400 text-center py-12">Ingen omkostninger registreret på denne enhed</p>
+  }
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* KPI cards */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Arbejdsomkostninger', value: fmt(totalLabor), color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Reservedelsomkostninger', value: fmt(totalParts), color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Total', value: fmt(grandTotal), color: 'text-gray-900 dark:text-gray-100' },
+        ].map(card => (
+          <div key={card.label} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
+            <p className="text-[11px] text-gray-400 mb-1">{card.label}</p>
+            <p className={clsx('text-base font-bold', card.color)}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Per-WO breakdown */}
+      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <th className="text-left px-3 py-2 text-xs font-medium text-gray-400">Arbejdsordre</th>
+              <th className="text-right px-3 py-2 text-xs font-medium text-gray-400">Arbejde</th>
+              <th className="text-right px-3 py-2 text-xs font-medium text-gray-400">Reservedele</th>
+              <th className="text-right px-3 py-2 text-xs font-medium text-gray-400">Total</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            {rows.map(r => (
+              <tr key={r.wo.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                <td className="px-3 py-2">
+                  <p className="text-sm text-gray-800 dark:text-gray-200 truncate max-w-[160px]">{r.wo.title}</p>
+                  <p className="text-[11px] text-gray-400">{r.wo.status}</p>
+                </td>
+                <td className="px-3 py-2 text-right text-xs text-blue-600 dark:text-blue-400">{fmt(r.laborCost)}</td>
+                <td className="px-3 py-2 text-right text-xs text-amber-600 dark:text-amber-400">{fmt(r.partsCost)}</td>
+                <td className="px-3 py-2 text-right text-xs font-semibold text-gray-700 dark:text-gray-300">{fmt(r.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-gray-50 dark:bg-gray-800 border-t-2 border-gray-200 dark:border-gray-700">
+              <td className="px-3 py-2 text-xs font-semibold text-gray-500">I alt</td>
+              <td className="px-3 py-2 text-right text-xs font-semibold text-blue-600 dark:text-blue-400">{fmt(totalLabor)}</td>
+              <td className="px-3 py-2 text-right text-xs font-semibold text-amber-600 dark:text-amber-400">{fmt(totalParts)}</td>
+              <td className="px-3 py-2 text-right text-xs font-bold text-gray-900 dark:text-gray-100">{fmt(grandTotal)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 function TabPlaceholder({ label }: { label: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-gray-400">
@@ -533,7 +613,7 @@ export default function AssetDetailPanel({
           {activeTab === 'indkob'      && <TabPlaceholder label="Indkøb" />}
           {activeTab === 'filer'       && <TabPlaceholder label="Filer" />}
           {activeTab === 'tilpasset'   && <TabPlaceholder label="Tilpasset" />}
-          {activeTab === 'oekonomi'    && <TabPlaceholder label="Økonomi" />}
+          {activeTab === 'oekonomi'    && <TabOekonomi assetId={asset.id} />}
         </div>
       </div>
     </div>

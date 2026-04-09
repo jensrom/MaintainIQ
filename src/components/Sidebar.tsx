@@ -3,6 +3,7 @@ import {
   LayoutDashboard, ClipboardList, MessageSquareMore, CalendarCheck,
   Calendar, BookOpen, Package, Truck, ExternalLink,
   Settings, SlidersHorizontal, Users, Code2, ChevronLeft, ChevronRight, Building2,
+  BarChart2, Activity,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
@@ -46,6 +47,13 @@ const NAV: NavGroup[] = [
     items: [
       { to: '/reservedele', icon: <Package size={18} />, label: 'Reservedele' },
       { to: '/leverandorer', icon: <Truck size={18} />, label: 'Leverandører' },
+    ],
+  },
+  {
+    title: 'Rapporter',
+    items: [
+      { to: '/analysevaerktoj',     icon: <BarChart2 size={18} />,          label: 'Analyseværktøj' },
+      { to: '/audit',               icon: <Activity size={18} />,           label: 'Audit Trail' },
     ],
   },
   {

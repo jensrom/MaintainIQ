@@ -15,6 +15,8 @@ import Settings from './screens/Settings'
 import CMMSSettings from './screens/CMMSSettings'
 import UserManagement from './screens/UserManagement'
 import ApiReference from './screens/ApiReference'
+import Analysevaerktoj from './screens/Analysevaerktoj'
+import AuditTrail from './screens/AuditTrail'
 import { useStore } from './store'
 
 function ThemeSync() {
@@ -45,6 +47,8 @@ export default function App() {
           <Route path="cmms-indstillinger" element={<CMMSSettings />} />
           <Route path="brugere" element={<UserManagement />} />
           <Route path="api" element={<ApiReference />} />
+          <Route path="analysevaerktoj" element={<Analysevaerktoj />} />
+          <Route path="audit" element={<AuditTrail />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

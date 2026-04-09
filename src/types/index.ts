@@ -227,6 +227,26 @@ export interface AppNotification {
   createdAt: string
 }
 
+// ─── Audit log ────────────────────────────────────────────────────────────────
+
+export type AuditAction =
+  | 'create_asset' | 'update_asset' | 'delete_asset'
+  | 'create_wo' | 'update_wo_status' | 'update_wo'
+  | 'create_category' | 'update_category' | 'delete_category'
+  | 'create_log_entry' | 'adjust_stock' | 'mark_pm_done'
+  | 'create_pm' | 'accept_request'
+
+export interface AuditEntry {
+  id: string
+  timestamp: string
+  userId: string
+  action: AuditAction
+  entityType: 'asset' | 'work_order' | 'asset_category' | 'spare_part' | 'log_entry' | 'pm_task'
+  entityId: string
+  entityName: string
+  details: string
+}
+
 // ─── Lookup tables ────────────────────────────────────────────────────────────
 
 export interface LookupItem {

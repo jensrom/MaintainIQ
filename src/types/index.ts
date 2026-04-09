@@ -18,6 +18,18 @@ export type WorkOrderCategory =
 
 export type AssetType = 'Site' | 'Lokation' | 'Enhed' | 'Værktøj'
 
+// Structural base type — determines which fields/tabs are shown
+export type AssetBaseType = 'site' | 'lokation' | 'udstyr' | 'vaerktoj' | 'andet'
+
+export interface AssetCategory {
+  id: string
+  name: string
+  baseType: AssetBaseType
+  color: string   // 'blue' | 'purple' | 'amber' | 'gray' | 'green' | 'red' | 'slate' | 'orange'
+  icon: string    // lucide icon name
+  isSystem: boolean
+}
+
 export type UserRole =
   | 'Vedligeholdstekniker'
   | 'Senior Tekniker'
@@ -62,11 +74,41 @@ export interface User {
 export interface Asset {
   id: string
   name: string
-  type: AssetType
+  type: AssetType           // structural hierarchy role
+  categoryId: string        // reference to AssetCategory
   parentId: string | null
   criticality: 'Kritisk' | 'Høj' | 'Normal' | 'Lav'
-  location: string
+  location: string          // display location string
   description?: string
+  code: string              // e.g. 'KOM-001', 'LOK-A1'
+  status: 'online' | 'offline'
+  image?: string
+
+  // Address — for site/lokation
+  address?: string
+  city?: string
+  province?: string
+  zip?: string
+  country?: string
+
+  // Equipment metadata — for udstyr/vaerktoj
+  brand?: string
+  model?: string
+  yearOfManufacture?: string
+  barcode?: string
+  unspscCode?: string
+  gang?: string             // aisle
+  row?: string
+  shelf?: string
+  supplierId?: string
+
+  // Common
+  account?: string
+  department?: string
+  notes?: string
+
+  createdAt: string
+  updatedAt?: string
 }
 
 export interface WorkOrderTask {

@@ -2,17 +2,18 @@ import { create } from 'zustand'
 import { addDays } from 'date-fns'
 import type {
   WorkOrder, WorkOrderStatus, Priority, WorkOrderCategory,
-  SparePart, PMTask, LogEntry, User, Asset, Supplier,
+  SparePart, PMTask, LogEntry, User, Asset, AssetCategory, Supplier,
   AppNotification, Settings, WidgetConfig,
 } from '../types'
 import {
-  USERS, ASSETS, WORK_ORDERS, SPARE_PARTS, SUPPLIERS, PM_TASKS, LOG_ENTRIES,
+  USERS, ASSETS, ASSET_CATEGORIES, WORK_ORDERS, SPARE_PARTS, SUPPLIERS, PM_TASKS, LOG_ENTRIES,
 } from '../data/mockData'
 
 interface AppState {
   // Data
   users: User[]
   assets: Asset[]
+  assetCategories: AssetCategory[]
   workOrders: WorkOrder[]
   spareParts: SparePart[]
   suppliers: Supplier[]
@@ -24,6 +25,14 @@ interface AppState {
   widgetConfigs: WidgetConfig[]
   // Sidebar
   sidebarCollapsed: boolean
+  // Actions — Assets
+  createAsset: (asset: Omit<Asset, 'id' | 'createdAt'>) => string
+  updateAsset: (id: string, patch: Partial<Asset>) => void
+  deleteAsset: (id: string) => void
+  // Actions — Asset Categories
+  createAssetCategory: (cat: Omit<AssetCategory, 'id' | 'isSystem'>) => string
+  updateAssetCategory: (id: string, patch: Partial<AssetCategory>) => void
+  deleteAssetCategory: (id: string) => void
   // Actions — Work Orders
   createWorkOrder: (wo: Omit<WorkOrder, 'id' | 'createdAt' | 'tasks' | 'comments' | 'timeLog' | 'spareParts' | 'history'>) => string
   updateWorkOrder: (id: string, patch: Partial<WorkOrder>) => void
@@ -66,6 +75,7 @@ function nextId(prefix: string, existing: string[]): string {
 export const useStore = create<AppState>((set, get) => ({
   users: USERS,
   assets: ASSETS,
+  assetCategories: ASSET_CATEGORIES,
   workOrders: WORK_ORDERS,
   spareParts: SPARE_PARTS,
   suppliers: SUPPLIERS,
@@ -92,6 +102,44 @@ export const useStore = create<AppState>((set, get) => ({
     { id: 'low_stock', displayType: 'count' },
     { id: 'requests', displayType: 'count' },
   ],
+
+  createAsset: (asset) => {
+    const existing = get().assets.map(a => a.id)
+    const id = nextId('ast', existing)
+    set(s => ({ assets: [...s.assets, { ...asset, id, createdAt: todayStr() }] }))
+    return id
+  },
+
+  updateAsset: (id, patch) => {
+    set(s => ({
+      assets: s.assets.map(a => a.id === id ? { ...a, ...patch, updatedAt: todayStr() } : a),
+    }))
+  },
+
+  deleteAsset: (id) => {
+    set(s => ({
+      assets: s.assets.filter(a => a.id !== id && a.parentId !== id),
+    }))
+  },
+
+  createAssetCategory: (cat) => {
+    const existing = get().assetCategories.map(c => c.id)
+    const id = nextId('cat', existing)
+    set(s => ({ assetCategories: [...s.assetCategories, { ...cat, isSystem: false, id }] }))
+    return id
+  },
+
+  updateAssetCategory: (id, patch) => {
+    set(s => ({
+      assetCategories: s.assetCategories.map(c => c.id === id ? { ...c, ...patch } : c),
+    }))
+  },
+
+  deleteAssetCategory: (id) => {
+    set(s => ({
+      assetCategories: s.assetCategories.filter(c => c.id !== id),
+    }))
+  },
 
   createWorkOrder: (wo) => {
     const existing = get().workOrders.map(w => w.id)

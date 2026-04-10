@@ -18,6 +18,18 @@ export type WorkOrderCategory =
 
 export type AssetType = 'Site' | 'Lokation' | 'Enhed' | 'Værktøj'
 
+// Structural base type — determines which fields/tabs are shown
+export type AssetBaseType = 'site' | 'lokation' | 'udstyr' | 'vaerktoj' | 'andet'
+
+export interface AssetCategory {
+  id: string
+  name: string
+  baseType: AssetBaseType
+  color: string   // 'blue' | 'purple' | 'amber' | 'gray' | 'green' | 'red' | 'slate' | 'orange'
+  icon: string    // lucide icon name
+  isSystem: boolean
+}
+
 export type UserRole =
   | 'Vedligeholdstekniker'
   | 'Senior Tekniker'
@@ -62,11 +74,41 @@ export interface User {
 export interface Asset {
   id: string
   name: string
-  type: AssetType
+  type: AssetType           // structural hierarchy role
+  categoryId: string        // reference to AssetCategory
   parentId: string | null
   criticality: 'Kritisk' | 'Høj' | 'Normal' | 'Lav'
-  location: string
+  location: string          // display location string
   description?: string
+  code: string              // e.g. 'KOM-001', 'LOK-A1'
+  status: 'online' | 'offline'
+  image?: string
+
+  // Address — for site/lokation
+  address?: string
+  city?: string
+  province?: string
+  zip?: string
+  country?: string
+
+  // Equipment metadata — for udstyr/vaerktoj
+  brand?: string
+  model?: string
+  yearOfManufacture?: string
+  barcode?: string
+  unspscCode?: string
+  gang?: string             // aisle
+  row?: string
+  shelf?: string
+  supplierId?: string
+
+  // Common
+  account?: string
+  department?: string
+  notes?: string
+
+  createdAt: string
+  updatedAt?: string
 }
 
 export interface WorkOrderTask {
@@ -184,6 +226,47 @@ export interface AppNotification {
   targetId?: string
   createdAt: string
 }
+
+// ─── Audit log ────────────────────────────────────────────────────────────────
+
+export type AuditAction =
+  | 'create_asset' | 'update_asset' | 'delete_asset'
+  | 'create_wo' | 'update_wo_status' | 'update_wo'
+  | 'create_category' | 'update_category' | 'delete_category'
+  | 'create_log_entry' | 'adjust_stock' | 'mark_pm_done'
+  | 'create_pm' | 'accept_request'
+
+export interface AuditEntry {
+  id: string
+  timestamp: string
+  userId: string
+  action: AuditAction
+  entityType: 'asset' | 'work_order' | 'asset_category' | 'spare_part' | 'log_entry' | 'pm_task'
+  entityId: string
+  entityName: string
+  details: string
+}
+
+// ─── Lookup tables ────────────────────────────────────────────────────────────
+
+export interface LookupItem {
+  id: string
+  name: string
+  color?: string      // tailwind color key
+  sortOrder: number
+  isSystem: boolean   // system items can be edited but not deleted
+  description?: string
+}
+
+export interface LookupTable {
+  id: string
+  key: string         // e.g. 'work_order_types'
+  name: string        // display name
+  description?: string
+  items: LookupItem[]
+}
+
+// ─── Widget / Settings ────────────────────────────────────────────────────────
 
 export interface WidgetConfig {
   id: string

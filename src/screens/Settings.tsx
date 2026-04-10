@@ -1,4 +1,5 @@
-import { Moon, Sun, Bell, BellOff, FlaskConical } from 'lucide-react'
+import { Moon, Sun, Bell, BellOff, FlaskConical, SlidersHorizontal } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
 import clsx from 'clsx'
 import { useStore } from '../store'
 
@@ -50,6 +51,21 @@ export default function Settings() {
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Indstillinger</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">Konfigurér systemets udseende og adfærd</p>
       </div>
+
+      {/* Link to CMMS settings */}
+      <NavLink
+        to="/cmms-indstillinger"
+        className="flex items-center justify-between px-5 py-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 mb-4 hover:border-blue-300 dark:hover:border-blue-700 transition-colors group"
+      >
+        <div className="flex items-center gap-3">
+          <SlidersHorizontal size={18} className="text-blue-500" />
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">CMMS Indstillinger</p>
+            <p className="text-xs text-gray-400">Enhedskategorier, opslagstabeller, vedligeholds- og arbejdsordreindstillinger</p>
+          </div>
+        </div>
+        <span className="text-xs text-blue-500 font-medium">Åbn →</span>
+      </NavLink>
 
       {/* Appearance */}
       <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 px-5 mb-4">

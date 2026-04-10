@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, ClipboardList, MessageSquareMore, CalendarCheck,
-  Calendar, BookOpen, MapPin, Package, Truck, ExternalLink,
-  Settings, Users, Code2, ChevronLeft, ChevronRight, Building2,
+  Calendar, BookOpen, Package, Truck, ExternalLink,
+  Settings, SlidersHorizontal, Users, Code2, ChevronLeft, ChevronRight, Building2,
+  BarChart2, Activity,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
@@ -49,12 +50,20 @@ const NAV: NavGroup[] = [
     ],
   },
   {
+    title: 'Rapporter',
+    items: [
+      { to: '/analysevaerktoj',     icon: <BarChart2 size={18} />,          label: 'Analyseværktøj' },
+      { to: '/audit',               icon: <Activity size={18} />,           label: 'Audit Trail' },
+    ],
+  },
+  {
     title: 'Andet',
     items: [
-      { to: '/gaesteportal', icon: <ExternalLink size={18} />, label: 'Gæsteportal' },
-      { to: '/indstillinger', icon: <Settings size={18} />, label: 'Indstillinger' },
-      { to: '/brugere', icon: <Users size={18} />, label: 'Brugerstyring' },
-      { to: '/api', icon: <Code2 size={18} />, label: 'API Reference' },
+      { to: '/gaesteportal',        icon: <ExternalLink size={18} />,       label: 'Gæsteportal' },
+      { to: '/indstillinger',       icon: <Settings size={18} />,           label: 'Indstillinger' },
+      { to: '/cmms-indstillinger',  icon: <SlidersHorizontal size={18} />,  label: 'CMMS Indstillinger' },
+      { to: '/brugere',             icon: <Users size={18} />,              label: 'Brugerstyring' },
+      { to: '/api',                 icon: <Code2 size={18} />,              label: 'API Reference' },
     ],
   },
 ]

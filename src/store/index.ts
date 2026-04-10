@@ -2,17 +2,20 @@ import { create } from 'zustand'
 import { addDays } from 'date-fns'
 import type {
   WorkOrder, WorkOrderStatus, Priority, WorkOrderCategory,
-  SparePart, PMTask, LogEntry, User, Asset, Supplier,
-  AppNotification, Settings, WidgetConfig,
+  SparePart, PMTask, LogEntry, User, Asset, AssetCategory, LookupTable, LookupItem, Supplier,
+  AppNotification, Settings, WidgetConfig, AuditEntry, AuditAction,
 } from '../types'
 import {
-  USERS, ASSETS, WORK_ORDERS, SPARE_PARTS, SUPPLIERS, PM_TASKS, LOG_ENTRIES,
+  USERS, ASSETS, ASSET_CATEGORIES, LOOKUP_TABLES,
+  WORK_ORDERS, SPARE_PARTS, SUPPLIERS, PM_TASKS, LOG_ENTRIES,
 } from '../data/mockData'
 
 interface AppState {
   // Data
   users: User[]
   assets: Asset[]
+  assetCategories: AssetCategory[]
+  auditLog: AuditEntry[]
   workOrders: WorkOrder[]
   spareParts: SparePart[]
   suppliers: Supplier[]
@@ -24,6 +27,19 @@ interface AppState {
   widgetConfigs: WidgetConfig[]
   // Sidebar
   sidebarCollapsed: boolean
+  // Actions — Assets
+  createAsset: (asset: Omit<Asset, 'id' | 'createdAt'>) => string
+  updateAsset: (id: string, patch: Partial<Asset>) => void
+  deleteAsset: (id: string) => void
+  // Actions — Asset Categories
+  createAssetCategory: (cat: Omit<AssetCategory, 'id' | 'isSystem'>) => string
+  updateAssetCategory: (id: string, patch: Partial<AssetCategory>) => void
+  deleteAssetCategory: (id: string) => void
+  // Actions — Lookup Tables
+  lookupTables: LookupTable[]
+  addLookupItem: (tableId: string, item: Omit<LookupItem, 'id'>) => void
+  updateLookupItem: (tableId: string, itemId: string, patch: Partial<LookupItem>) => void
+  deleteLookupItem: (tableId: string, itemId: string) => void
   // Actions — Work Orders
   createWorkOrder: (wo: Omit<WorkOrder, 'id' | 'createdAt' | 'tasks' | 'comments' | 'timeLog' | 'spareParts' | 'history'>) => string
   updateWorkOrder: (id: string, patch: Partial<WorkOrder>) => void
@@ -55,6 +71,10 @@ function todayStr() {
   return new Date().toISOString().split('T')[0]
 }
 
+function nowStr() {
+  return new Date().toISOString()
+}
+
 function nextId(prefix: string, existing: string[]): string {
   const nums = existing
     .filter(id => id.startsWith(prefix))
@@ -66,6 +86,9 @@ function nextId(prefix: string, existing: string[]): string {
 export const useStore = create<AppState>((set, get) => ({
   users: USERS,
   assets: ASSETS,
+  assetCategories: ASSET_CATEGORIES,
+  auditLog: [],
+  lookupTables: LOOKUP_TABLES,
   workOrders: WORK_ORDERS,
   spareParts: SPARE_PARTS,
   suppliers: SUPPLIERS,
@@ -93,44 +116,124 @@ export const useStore = create<AppState>((set, get) => ({
     { id: 'requests', displayType: 'count' },
   ],
 
+  createAsset: (asset) => {
+    const existing = get().assets.map(a => a.id)
+    const id = nextId('ast', existing)
+    const ts = nowStr()
+    set(s => ({
+      assets: [...s.assets, { ...asset, id, createdAt: todayStr() }],
+      auditLog: [{ id: nextId('au', s.auditLog.map(a => a.id)), timestamp: ts, userId: s.activeUserId,
+        action: 'create_asset', entityType: 'asset', entityId: id, entityName: asset.name,
+        details: `Oprettet enhed "${asset.name}" (${asset.code})` }, ...s.auditLog],
+    }))
+    return id
+  },
+
+  updateAsset: (id, patch) => {
+    const asset = get().assets.find(a => a.id === id)
+    const ts = nowStr()
+    set(s => ({
+      assets: s.assets.map(a => a.id === id ? { ...a, ...patch, updatedAt: todayStr() } : a),
+      auditLog: [{ id: nextId('au', s.auditLog.map(a => a.id)), timestamp: ts, userId: s.activeUserId,
+        action: 'update_asset', entityType: 'asset', entityId: id, entityName: asset?.name ?? id,
+        details: `Opdateret: ${Object.keys(patch).join(', ')}` }, ...s.auditLog],
+    }))
+  },
+
+  deleteAsset: (id) => {
+    const asset = get().assets.find(a => a.id === id)
+    const ts = nowStr()
+    set(s => ({
+      assets: s.assets.filter(a => a.id !== id && a.parentId !== id),
+      auditLog: [{ id: nextId('au', s.auditLog.map(a => a.id)), timestamp: ts, userId: s.activeUserId,
+        action: 'delete_asset', entityType: 'asset', entityId: id, entityName: asset?.name ?? id,
+        details: `Slettet enhed "${asset?.name ?? id}"` }, ...s.auditLog],
+    }))
+  },
+
+  createAssetCategory: (cat) => {
+    const existing = get().assetCategories.map(c => c.id)
+    const id = nextId('cat', existing)
+    set(s => ({ assetCategories: [...s.assetCategories, { ...cat, isSystem: false, id }] }))
+    return id
+  },
+
+  updateAssetCategory: (id, patch) => {
+    set(s => ({
+      assetCategories: s.assetCategories.map(c => c.id === id ? { ...c, ...patch } : c),
+    }))
+  },
+
+  deleteAssetCategory: (id) => {
+    set(s => ({
+      assetCategories: s.assetCategories.filter(c => c.id !== id),
+    }))
+  },
+
+  addLookupItem: (tableId, item) => {
+    set(s => ({
+      lookupTables: s.lookupTables.map(t => {
+        if (t.id !== tableId) return t
+        const id = nextId('li', t.items.map(i => i.id))
+        return { ...t, items: [...t.items, { ...item, id }] }
+      }),
+    }))
+  },
+
+  updateLookupItem: (tableId, itemId, patch) => {
+    set(s => ({
+      lookupTables: s.lookupTables.map(t => {
+        if (t.id !== tableId) return t
+        return { ...t, items: t.items.map(i => i.id === itemId ? { ...i, ...patch } : i) }
+      }),
+    }))
+  },
+
+  deleteLookupItem: (tableId, itemId) => {
+    set(s => ({
+      lookupTables: s.lookupTables.map(t => {
+        if (t.id !== tableId) return t
+        return { ...t, items: t.items.filter(i => i.id !== itemId) }
+      }),
+    }))
+  },
+
   createWorkOrder: (wo) => {
     const existing = get().workOrders.map(w => w.id)
     const id = nextId('AO-', existing)
-    const newWO: WorkOrder = {
-      ...wo,
-      id,
-      createdAt: todayStr(),
-      tasks: [],
-      comments: [],
-      timeLog: [],
-      spareParts: [],
-      history: [],
-    }
-    set(s => ({ workOrders: [newWO, ...s.workOrders] }))
+    const ts = nowStr()
+    const newWO: WorkOrder = { ...wo, id, createdAt: todayStr(), tasks: [], comments: [], timeLog: [], spareParts: [], history: [] }
+    set(s => ({
+      workOrders: [newWO, ...s.workOrders],
+      auditLog: [{ id: nextId('au', s.auditLog.map(a => a.id)), timestamp: ts, userId: s.activeUserId,
+        action: 'create_wo', entityType: 'work_order', entityId: id, entityName: wo.title,
+        details: `Oprettet arbejdsordre "${wo.title}" (${wo.priority} / ${wo.category})` }, ...s.auditLog],
+    }))
     return id
   },
 
   updateWorkOrder: (id, patch) => {
+    const wo = get().workOrders.find(w => w.id === id)
+    const ts = nowStr()
     set(s => ({
-      workOrders: s.workOrders.map(wo => {
-        if (wo.id !== id) return wo
-        const updated = { ...wo, ...patch }
-        // Add history entry for status change
-        if (patch.status && patch.status !== wo.status) {
+      workOrders: s.workOrders.map(w => {
+        if (w.id !== id) return w
+        const updated = { ...w, ...patch }
+        if (patch.status && patch.status !== w.status) {
           updated.history = [
-            {
-              id: nextId('h', wo.history.map(h => h.id)),
-              field: 'Status',
-              oldValue: wo.status,
-              newValue: patch.status,
-              userId: s.activeUserId,
-              date: todayStr(),
-            },
-            ...wo.history,
+            { id: nextId('h', w.history.map(h => h.id)), field: 'Status', oldValue: w.status,
+              newValue: patch.status, userId: s.activeUserId, date: todayStr() },
+            ...w.history,
           ]
         }
         return updated
       }),
+      auditLog: patch.status && wo ? [
+        { id: nextId('au', s.auditLog.map(a => a.id)), timestamp: ts, userId: s.activeUserId,
+          action: 'update_wo_status', entityType: 'work_order', entityId: id, entityName: wo.title,
+          details: `Status ændret: ${wo.status} → ${patch.status}` },
+        ...s.auditLog,
+      ] : s.auditLog,
     }))
   },
 
@@ -228,19 +331,20 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   markPMDone: (id) => {
+    const pm = get().pmTasks.find(p => p.id === id)
+    const ts = nowStr()
     set(s => ({
-      pmTasks: s.pmTasks.map(pm => {
-        if (pm.id !== id) return pm
-        const today = new Date()
-        const nextDue = addDays(today, pm.frequencyDays).toISOString().split('T')[0]
-        return {
-          ...pm,
-          lastDone: todayStr(),
-          nextDue,
-          status: 'Udført' as const,
-          tasks: pm.tasks.map(t => ({ ...t, done: false })),
-        }
+      pmTasks: s.pmTasks.map(p => {
+        if (p.id !== id) return p
+        const nextDue = addDays(new Date(), p.frequencyDays).toISOString().split('T')[0]
+        return { ...p, lastDone: todayStr(), nextDue, status: 'Udført' as const, tasks: p.tasks.map(t => ({ ...t, done: false })) }
       }),
+      auditLog: pm ? [
+        { id: nextId('au', s.auditLog.map(a => a.id)), timestamp: ts, userId: s.activeUserId,
+          action: 'mark_pm_done', entityType: 'pm_task', entityId: id, entityName: pm.title,
+          details: `PM markeret udført: "${pm.title}"` },
+        ...s.auditLog,
+      ] : s.auditLog,
     }))
   },
 
@@ -274,19 +378,20 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   adjustStock: (id, delta) => {
+    const sp = get().spareParts.find(s => s.id === id)
+    const ts = nowStr()
     set(s => ({
-      spareParts: s.spareParts.map(sp => {
-        if (sp.id !== id) return sp
-        const newQty = Math.max(0, sp.quantity + delta)
-        return {
-          ...sp,
-          quantity: newQty,
-          history: [
-            { date: todayStr(), change: delta, note: delta > 0 ? 'Manuel tilføjelse' : 'Manuel fradrag' },
-            ...sp.history,
-          ],
-        }
+      spareParts: s.spareParts.map(part => {
+        if (part.id !== id) return part
+        const newQty = Math.max(0, part.quantity + delta)
+        return { ...part, quantity: newQty, history: [{ date: todayStr(), change: delta, note: delta > 0 ? 'Manuel tilføjelse' : 'Manuel fradrag' }, ...part.history] }
       }),
+      auditLog: sp ? [
+        { id: nextId('au', s.auditLog.map(a => a.id)), timestamp: ts, userId: s.activeUserId,
+          action: 'adjust_stock', entityType: 'spare_part', entityId: id, entityName: sp.name,
+          details: `Lager justeret ${delta > 0 ? '+' : ''}${delta} → ${Math.max(0, sp.quantity + delta)} stk` },
+        ...s.auditLog,
+      ] : s.auditLog,
     }))
   },
 

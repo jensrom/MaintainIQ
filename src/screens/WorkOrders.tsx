@@ -358,7 +358,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 // ---- Create WO Form ----
 function CreateWOForm({ onClose }: { onClose: () => void }) {
-  const { assets, users, createWorkOrder } = useStore()
+  const { assets, users, createWorkOrder, lookupTables } = useStore()
+  const woTypes  = lookupTables.find(t => t.key === 'work_order_types')?.items ?? []
+  const priorities = lookupTables.find(t => t.key === 'priorities')?.items ?? []
   const [form, setForm] = useState({
     title: '', assetId: '', assigneeId: '', priority: 'Normal' as Priority,
     category: 'Afhjælpende' as WorkOrderCategory, dueDate: '', isPharma: false,
@@ -395,13 +397,13 @@ function CreateWOForm({ onClose }: { onClose: () => void }) {
           <div>
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Prioritet</label>
             <select className={inp} value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as Priority }))}>
-              {(['Kritisk', 'Høj', 'Normal', 'Lav'] as Priority[]).map(p => <option key={p}>{p}</option>)}
+              {(priorities.length ? priorities.map(p => p.name) : ['Kritisk', 'Høj', 'Normal', 'Lav']).map(p => <option key={p}>{p}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Kategori</label>
             <select className={inp} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as WorkOrderCategory }))}>
-              {(['Forebyggende', 'Afhjælpende', 'Inspektion', 'Projekt', 'Rengøring'] as WorkOrderCategory[]).map(c => <option key={c}>{c}</option>)}
+              {(woTypes.length ? woTypes.map(t => t.name) : ['Forebyggende', 'Afhjælpende', 'Inspektion', 'Projekt', 'Rengøring']).map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
         </div>

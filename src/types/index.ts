@@ -28,6 +28,8 @@ export interface AssetCategory {
   color: string   // 'blue' | 'purple' | 'amber' | 'gray' | 'green' | 'red' | 'slate' | 'orange'
   icon: string    // lucide icon name
   isSystem: boolean
+  parentId: string | null
+  sortOrder: number
 }
 
 export type UserRole =
@@ -69,6 +71,12 @@ export interface User {
   phone: string
   role: UserRole
   hourlyRate: number
+  groupIds: string[]
+  isActive: boolean
+  lastLogin?: string
+  mfaEnabled: boolean
+  entraId?: string
+  passwordHash?: string   // mock: plain text password
 }
 
 export interface Asset {
@@ -283,4 +291,58 @@ export interface Settings {
     emptyStock: boolean
     overduePM: boolean
   }
+}
+
+// ─── Permissions & User Groups ────────────────────────────────────────────────
+
+export type Permission =
+  | 'view_dashboard'
+  | 'view_workorders' | 'create_workorder' | 'edit_workorder'
+  | 'close_workorder' | 'approve_workorder' | 'delete_workorder'
+  | 'view_assets' | 'create_asset' | 'edit_asset' | 'delete_asset'
+  | 'view_spareParts' | 'adjust_stock' | 'manage_spareParts'
+  | 'view_pm' | 'create_pm' | 'edit_pm' | 'complete_pm' | 'approve_pm'
+  | 'view_logbook' | 'create_logentry'
+  | 'view_suppliers' | 'manage_suppliers'
+  | 'view_reports' | 'view_audit' | 'export_data'
+  | 'admin_users' | 'admin_groups' | 'admin_settings'
+  | 'pharma_signoff' | 'pharma_review' | 'pharma_approve'
+  | 'manage_calibration' | 'manage_deviations' | 'manage_capa'
+  | 'view_guest_requests' | 'manage_guest_requests'
+
+export interface UserGroup {
+  id: string
+  name: string
+  description: string
+  siteIds: string[]       // empty = all sites
+  permissions: Permission[]
+  color: string           // tailwind color key
+  isSystem: boolean
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+export interface AuthSession {
+  userId: string
+  loginTime: string
+  expiresAt: string
+  method: 'password' | 'entra'
+  mfaVerified: boolean
+}
+
+// ─── Company Settings ─────────────────────────────────────────────────────────
+
+export interface CompanySettings {
+  name: string
+  logo?: string           // base64 data URL
+  logoOnPrint: boolean
+  logoOnQR: boolean
+  address?: string
+  city?: string
+  zip?: string
+  country?: string
+  phone?: string
+  email?: string
+  vatNumber?: string
+  website?: string
 }

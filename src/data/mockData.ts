@@ -1,5 +1,6 @@
 import type {
-  User, Asset, AssetCategory, LookupTable, WorkOrder, SparePart, Supplier, PMTask, LogEntry
+  User, Asset, AssetCategory, LookupTable, WorkOrder, SparePart, Supplier, PMTask, LogEntry,
+  UserGroup, CompanySettings, Permission
 } from '../types'
 
 export const LOOKUP_TABLES: LookupTable[] = [
@@ -112,12 +113,19 @@ export const LOOKUP_TABLES: LookupTable[] = [
 ]
 
 export const ASSET_CATEGORIES: AssetCategory[] = [
-  { id: 'cat1', name: 'Lokationer og faciliteter', baseType: 'lokation', color: 'purple', icon: 'MapPin',   isSystem: true  },
-  { id: 'cat2', name: 'Fabrikker',                 baseType: 'site',     color: 'blue',   icon: 'Factory',  isSystem: true  },
-  { id: 'cat3', name: 'Udstyr',                    baseType: 'udstyr',   color: 'amber',  icon: 'Cog',      isSystem: true  },
-  { id: 'cat4', name: 'Maskiner',                  baseType: 'udstyr',   color: 'orange', icon: 'Settings2',isSystem: false },
-  { id: 'cat5', name: 'Værktøjer',                 baseType: 'vaerktoj', color: 'gray',   icon: 'Wrench',   isSystem: true  },
-  { id: 'cat6', name: 'Andet',                     baseType: 'andet',    color: 'slate',  icon: 'Box',      isSystem: false },
+  // ── Parent categories (grouping containers) ──────────────────────────────
+  { id: 'cat-p1', name: 'Lokationer og faciliteter', baseType: 'lokation',  color: 'blue',   icon: 'MapPin',   isSystem: true, parentId: null, sortOrder: 10 },
+  { id: 'cat-p2', name: 'Produktionsudstyr',          baseType: 'udstyr',   color: 'amber',  icon: 'Factory',  isSystem: true, parentId: null, sortOrder: 20 },
+  { id: 'cat-p3', name: 'Forsyning & Infrastruktur',  baseType: 'udstyr',   color: 'slate',  icon: 'Cog',      isSystem: true, parentId: null, sortOrder: 30 },
+  { id: 'cat-p4', name: 'Værktøjer & Redskaber',      baseType: 'vaerktoj', color: 'gray',   icon: 'Wrench',   isSystem: true, parentId: null, sortOrder: 40 },
+  { id: 'cat-p5', name: 'Andet',                      baseType: 'andet',    color: 'gray',   icon: 'Box',      isSystem: true, parentId: null, sortOrder: 50 },
+  // ── Sub-categories ────────────────────────────────────────────────────────
+  { id: 'cat-1', name: 'Lokationer',           baseType: 'lokation',  color: 'blue',   icon: 'MapPin',   isSystem: true, parentId: 'cat-p1', sortOrder: 1 },
+  { id: 'cat-2', name: 'Fabrikker & Sites',    baseType: 'site',      color: 'slate',  icon: 'Factory',  isSystem: true, parentId: 'cat-p1', sortOrder: 2 },
+  { id: 'cat-3', name: 'Produktionsudstyr',    baseType: 'udstyr',    color: 'amber',  icon: 'Cog',      isSystem: true, parentId: 'cat-p2', sortOrder: 1 },
+  { id: 'cat-4', name: 'Maskiner',             baseType: 'udstyr',    color: 'orange', icon: 'Settings2',isSystem: true, parentId: 'cat-p2', sortOrder: 2 },
+  { id: 'cat-5', name: 'Værktøjer',            baseType: 'vaerktoj',  color: 'gray',   icon: 'Wrench',   isSystem: true, parentId: 'cat-p4', sortOrder: 1 },
+  { id: 'cat-6', name: 'Andet',                baseType: 'andet',     color: 'gray',   icon: 'Box',       isSystem: true, parentId: 'cat-p5', sortOrder: 1 },
 ]
 
 export const USERS: User[] = [
@@ -130,6 +138,10 @@ export const USERS: User[] = [
     phone: '+45 20 11 22 33',
     role: 'Vedligeholdstekniker',
     hourlyRate: 350,
+    groupIds: ['ug-2'],
+    isActive: true,
+    mfaEnabled: false,
+    passwordHash: 'Demo1234!',
   },
   {
     id: 'u2',
@@ -140,6 +152,10 @@ export const USERS: User[] = [
     phone: '+45 20 44 55 66',
     role: 'Senior Tekniker',
     hourlyRate: 450,
+    groupIds: ['ug-2'],
+    isActive: true,
+    mfaEnabled: false,
+    passwordHash: 'Demo1234!',
   },
   {
     id: 'u3',
@@ -150,6 +166,10 @@ export const USERS: User[] = [
     phone: '+45 20 77 88 99',
     role: 'Planlægger',
     hourlyRate: 400,
+    groupIds: ['ug-3'],
+    isActive: true,
+    mfaEnabled: false,
+    passwordHash: 'Demo1234!',
   },
   {
     id: 'u4',
@@ -160,6 +180,10 @@ export const USERS: User[] = [
     phone: '+45 20 33 44 55',
     role: 'Driftsleder',
     hourlyRate: 500,
+    groupIds: ['ug-1'],
+    isActive: true,
+    mfaEnabled: true,
+    passwordHash: 'Demo1234!',
   },
   {
     id: 'u5',
@@ -170,6 +194,10 @@ export const USERS: User[] = [
     phone: '+45 20 66 77 88',
     role: 'Kvalitetschef',
     hourlyRate: 550,
+    groupIds: ['ug-4'],
+    isActive: true,
+    mfaEnabled: true,
+    passwordHash: 'Demo1234!',
   },
 ]
 
@@ -1129,5 +1157,120 @@ export const LOG_ENTRIES: LogEntry[] = [
     tags: ['pumpe', 'smøring', 'PM'],
     createdAt: d(-14),
     userId: 'u1',
+  },
+]
+
+export const COMPANY_SETTINGS: CompanySettings = {
+  name: 'Horsens Pharma A/S',
+  logo: undefined,
+  logoOnPrint: true,
+  logoOnQR: false,
+  address: 'Industrivej 42',
+  city: 'Horsens',
+  zip: '8700',
+  country: 'Danmark',
+  phone: '+45 76 12 34 56',
+  email: 'maintenance@horsens-pharma.dk',
+  vatNumber: 'DK 12345678',
+  website: 'www.horsens-pharma.dk',
+}
+
+const ALL_PERMISSIONS: Permission[] = [
+  'view_dashboard',
+  'view_workorders', 'create_workorder', 'edit_workorder',
+  'close_workorder', 'approve_workorder', 'delete_workorder',
+  'view_assets', 'create_asset', 'edit_asset', 'delete_asset',
+  'view_spareParts', 'adjust_stock', 'manage_spareParts',
+  'view_pm', 'create_pm', 'edit_pm', 'complete_pm', 'approve_pm',
+  'view_logbook', 'create_logentry',
+  'view_suppliers', 'manage_suppliers',
+  'view_reports', 'view_audit', 'export_data',
+  'admin_users', 'admin_groups', 'admin_settings',
+  'pharma_signoff', 'pharma_review', 'pharma_approve',
+  'manage_calibration', 'manage_deviations', 'manage_capa',
+  'view_guest_requests', 'manage_guest_requests',
+]
+
+export const USER_GROUPS: UserGroup[] = [
+  {
+    id: 'ug-1',
+    name: 'Administratorer',
+    description: 'Fuld adgang til alle moduler og indstillinger',
+    siteIds: [],
+    permissions: ALL_PERMISSIONS,
+    color: 'red',
+    isSystem: true,
+  },
+  {
+    id: 'ug-2',
+    name: 'Vedligeholdsteknikere',
+    description: 'Adgang til vedligehold, arbejdsordrer og reservedele',
+    siteIds: [],
+    permissions: [
+      'view_dashboard',
+      'view_workorders', 'create_workorder', 'edit_workorder', 'close_workorder',
+      'view_assets', 'view_spareParts', 'adjust_stock',
+      'view_pm', 'complete_pm',
+      'view_logbook', 'create_logentry',
+      'view_guest_requests',
+    ],
+    color: 'blue',
+    isSystem: true,
+  },
+  {
+    id: 'ug-3',
+    name: 'Planlæggere',
+    description: 'Adgang til planlægning, PM-opgaver og rapporter',
+    siteIds: [],
+    permissions: [
+      'view_dashboard',
+      'view_workorders', 'create_workorder', 'edit_workorder',
+      'close_workorder', 'approve_workorder',
+      'view_assets', 'create_asset', 'edit_asset',
+      'view_spareParts', 'adjust_stock', 'manage_spareParts',
+      'view_pm', 'create_pm', 'edit_pm', 'complete_pm', 'approve_pm',
+      'view_logbook', 'create_logentry',
+      'view_suppliers', 'manage_suppliers',
+      'view_reports', 'export_data',
+      'view_guest_requests', 'manage_guest_requests',
+    ],
+    color: 'green',
+    isSystem: true,
+  },
+  {
+    id: 'ug-4',
+    name: 'Kvalitet & Pharma QA',
+    description: 'GMP compliance, elektroniske underskrifter og audit-adgang',
+    siteIds: [],
+    permissions: [
+      'view_dashboard',
+      'view_workorders', 'approve_workorder',
+      'view_assets',
+      'view_pm', 'approve_pm',
+      'view_logbook',
+      'view_reports', 'view_audit', 'export_data',
+      'pharma_signoff', 'pharma_review', 'pharma_approve',
+      'manage_calibration', 'manage_deviations', 'manage_capa',
+    ],
+    color: 'purple',
+    isSystem: true,
+  },
+  {
+    id: 'ug-5',
+    name: 'Læseadgang',
+    description: 'Kun visning — ingen redigering eller oprettelse',
+    siteIds: [],
+    permissions: [
+      'view_dashboard',
+      'view_workorders',
+      'view_assets',
+      'view_spareParts',
+      'view_pm',
+      'view_logbook',
+      'view_suppliers',
+      'view_reports',
+    ],
+    color: 'gray',
+    isSystem: true,
   },
 ]

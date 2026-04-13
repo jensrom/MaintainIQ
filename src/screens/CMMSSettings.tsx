@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   Plus, Pencil, Trash2, X, Check, Save,
-  MapPin, Factory, Cog, Settings2, Wrench, Box, ChevronDown,
+  MapPin, Factory, Cog, Settings2, Wrench, Box, ChevronDown, ChevronRight,
+  Upload, Image, Building2, Phone, Mail, Globe, Hash,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
@@ -133,7 +134,14 @@ function CategoryForm({
   function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
-    onSave({ name: name.trim(), baseType, color, icon })
+    onSave({
+      name: name.trim(),
+      baseType,
+      color,
+      icon,
+      parentId: initial?.parentId ?? null,
+      sortOrder: initial?.sortOrder ?? 0,
+    })
   }
 
   return (
@@ -196,86 +204,341 @@ function CategoryForm({
   )
 }
 
+function CategoryRow({
+  cat, depth, assetCount, editingId, confirmId,
+  onEdit, onDelete, onConfirmDelete, onCancelDelete,
+  onSave, onCancelEdit,
+}: {
+  cat: AssetCategory; depth: number; assetCount: number
+  editingId: string | null; confirmId: string | null
+  onEdit: (id: string) => void; onDelete: (id: string) => void
+  onConfirmDelete: () => void; onCancelDelete: () => void
+  onSave: (d: Omit<AssetCategory, 'id' | 'isSystem'>) => void
+  onCancelEdit: () => void
+}) {
+  const isParent = cat.parentId === null
+  return (
+    <>
+      <div
+        className={clsx(
+          'grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0',
+          isParent ? 'bg-gray-50 dark:bg-gray-800/40 px-4' : 'px-4'
+        )}
+        style={{ paddingLeft: `${16 + depth * 20}px` }}
+      >
+        <div className="flex items-center gap-2">
+          {depth > 0 && <span className="text-gray-300 dark:text-gray-600 text-xs">└</span>}
+          <SBadge color={cat.color} icon={cat.icon} name={cat.name} />
+          {isParent && <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wide ml-1">Overkat.</span>}
+        </div>
+        <span className="text-xs text-gray-400 w-14 text-right">{assetCount} enh.</span>
+        <span className="w-16 text-center">
+          {cat.isSystem && <span className="text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">System</span>}
+        </span>
+        <div className="flex items-center gap-1 w-14 justify-end">
+          {confirmId === cat.id ? (
+            <>
+              <button onClick={onConfirmDelete} className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"><Check size={12} /></button>
+              <button onClick={onCancelDelete} className="p-1 text-gray-400 rounded"><X size={12} /></button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => onEdit(cat.id)} className="p-1 text-gray-400 hover:text-blue-500 rounded"><Pencil size={12} /></button>
+              {!cat.isSystem && (
+                <button onClick={() => onDelete(cat.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 size={12} /></button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      {editingId === cat.id && (
+        <div className="px-4 pb-2 bg-white dark:bg-gray-900">
+          <CategoryForm
+            initial={cat}
+            onSave={onSave}
+            onCancel={onCancelEdit}
+          />
+        </div>
+      )}
+    </>
+  )
+}
+
 function TabEnhedskategorier() {
   const { assetCategories, assets, createAssetCategory, updateAssetCategory, deleteAssetCategory } = useStore()
-  const [showForm, setShowForm]   = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [editingId, setEditingId]     = useState<string | null>(null)
+  const [confirmId, setConfirmId]     = useState<string | null>(null)
+  const [addParentForm, setAddParentForm] = useState(false)
+  const [addChildFor, setAddChildFor] = useState<string | null>(null)
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(
+    () => new Set(assetCategories.filter(c => c.parentId === null).map(c => c.id))
+  )
 
   const countByCategory = assetCategories.reduce<Record<string, number>>((acc, c) => {
     acc[c.id] = assets.filter(a => a.categoryId === c.id).length
     return acc
   }, {})
 
-  return (
-    <div className="max-w-2xl">
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-        {/* Header row */}
-        <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-          <span className="text-xs font-medium text-gray-400">Vis navn</span>
-          <span className="text-xs font-medium text-gray-400 w-16 text-center">Enheder</span>
-          <span className="text-xs font-medium text-gray-400 w-28">Basetype</span>
-          <span className="text-xs font-medium text-gray-400 w-16 text-center">System</span>
-          <span className="text-xs font-medium text-gray-400 w-16 text-center">Handlinger</span>
-        </div>
+  const parents = assetCategories
+    .filter(c => c.parentId === null)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
 
-        {/* Rows */}
-        <div className="divide-y divide-gray-100 dark:divide-gray-800 px-4">
-          {assetCategories.map(cat => (
-            <div key={cat.id}>
-              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-center py-2.5">
-                <SBadge color={cat.color} icon={cat.icon} name={cat.name} />
-                <span className="text-sm text-gray-500 w-16 text-center">
-                  {countByCategory[cat.id] ?? 0}
-                </span>
-                <span className="text-xs text-gray-500 w-28">
-                  {BASE_TYPE_OPTS.find(o => o.value === cat.baseType)?.label}
-                </span>
-                <span className="w-16 text-center">
-                  {cat.isSystem && <span className="text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">System</span>}
-                </span>
-                <div className="flex items-center gap-1 w-16 justify-center">
-                  {confirmId === cat.id ? (
-                    <>
-                      <button onClick={() => { deleteAssetCategory(cat.id); setConfirmId(null) }} className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"><Check size={13} /></button>
-                      <button onClick={() => setConfirmId(null)} className="p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"><X size={13} /></button>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={() => { setEditingId(cat.id); setShowForm(false) }} className="p-1 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"><Pencil size={13} /></button>
-                      {!cat.isSystem && (
-                        <button onClick={() => setConfirmId(cat.id)} className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"><Trash2 size={13} /></button>
-                      )}
-                    </>
-                  )}
-                </div>
+  function childrenOf(parentId: string) {
+    return assetCategories
+      .filter(c => c.parentId === parentId)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  }
+
+  function toggleParent(id: string) {
+    setExpandedParents(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  return (
+    <div className="max-w-2xl space-y-1">
+      <p className="text-xs text-gray-500 mb-3">
+        Kategorier er organiseret i overordnede kategorier med underkategorier. Enheder tildeles underkategorier.
+      </p>
+
+      {/* Add parent category form */}
+      {addParentForm && (
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 mb-3">
+          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Ny overordnet kategori</p>
+          <CategoryForm
+            onSave={d => { createAssetCategory({ ...d, parentId: null }); setAddParentForm(false) }}
+            onCancel={() => setAddParentForm(false)}
+          />
+        </div>
+      )}
+
+      {parents.map(parent => {
+        const children = childrenOf(parent.id)
+        const isExpanded = expandedParents.has(parent.id)
+        const totalCount = countByCategory[parent.id] ?? 0 + children.reduce((s, c) => s + (countByCategory[c.id] ?? 0), 0)
+
+        return (
+          <div key={parent.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
+            {/* Parent header */}
+            <div className="flex items-center px-4 py-2.5 bg-gray-50 dark:bg-gray-800/50 gap-2">
+              <button
+                onClick={() => toggleParent(parent.id)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </button>
+              <SBadge color={parent.color} icon={parent.icon} name={parent.name} />
+              <span className="text-[11px] text-gray-400 ml-1">{children.length} underkategorier</span>
+              <div className="flex items-center gap-1 ml-auto">
+                {confirmId === parent.id ? (
+                  <>
+                    <button onClick={() => { deleteAssetCategory(parent.id); setConfirmId(null) }} className="p-1 text-red-500 rounded"><Check size={12} /></button>
+                    <button onClick={() => setConfirmId(null)} className="p-1 text-gray-400 rounded"><X size={12} /></button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => { setEditingId(editingId === parent.id ? null : parent.id) }} className="p-1 text-gray-400 hover:text-blue-500 rounded"><Pencil size={12} /></button>
+                    {!parent.isSystem && <button onClick={() => setConfirmId(parent.id)} className="p-1 text-gray-400 hover:text-red-500 rounded"><Trash2 size={12} /></button>}
+                  </>
+                )}
               </div>
-              {editingId === cat.id && (
+            </div>
+
+            {editingId === parent.id && (
+              <div className="px-4 pb-3 pt-2 border-b border-gray-100 dark:border-gray-800">
                 <CategoryForm
-                  initial={cat}
-                  onSave={d => { updateAssetCategory(cat.id, d); setEditingId(null) }}
+                  initial={parent}
+                  onSave={d => { updateAssetCategory(parent.id, d); setEditingId(null) }}
                   onCancel={() => setEditingId(null)}
                 />
+              </div>
+            )}
+
+            {/* Children */}
+            {isExpanded && (
+              <div>
+                {children.map(child => (
+                  <CategoryRow
+                    key={child.id}
+                    cat={child}
+                    depth={1}
+                    assetCount={countByCategory[child.id] ?? 0}
+                    editingId={editingId}
+                    confirmId={confirmId}
+                    onEdit={id => setEditingId(editingId === id ? null : id)}
+                    onDelete={id => setConfirmId(id)}
+                    onConfirmDelete={() => { deleteAssetCategory(child.id); setConfirmId(null) }}
+                    onCancelDelete={() => setConfirmId(null)}
+                    onSave={d => { updateAssetCategory(child.id, d); setEditingId(null) }}
+                    onCancelEdit={() => setEditingId(null)}
+                  />
+                ))}
+
+                {/* Add sub-category */}
+                {addChildFor === parent.id ? (
+                  <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800">
+                    <p className="text-xs font-semibold text-gray-500 mb-2">Ny underkategori under <em>{parent.name}</em></p>
+                    <CategoryForm
+                      onSave={d => { createAssetCategory({ ...d, parentId: parent.id }); setAddChildFor(null) }}
+                      onCancel={() => setAddChildFor(null)}
+                    />
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setAddChildFor(parent.id)}
+                    className="w-full flex items-center gap-1.5 px-8 py-2 text-xs text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors border-t border-gray-100 dark:border-gray-800"
+                  >
+                    <Plus size={12} /> Tilføj underkategori
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {/* Add parent button */}
+      {!addParentForm && (
+        <button
+          onClick={() => setAddParentForm(true)}
+          className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium mt-2"
+        >
+          <Plus size={14} /> Tilføj overordnet kategori
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ─── Tab: Virksomhed & Logo ───────────────────────────────────────────────────
+
+function TabVirksomhed() {
+  const { companySettings, updateCompanySettings } = useStore()
+  const [form, setForm] = useState({ ...companySettings })
+  const [saved, setSaved] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const dataUrl = ev.target?.result as string
+      setForm(f => ({ ...f, logo: dataUrl }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function handleSave() {
+    updateCompanySettings(form)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const inp = 'w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500'
+
+  return (
+    <div className="max-w-2xl space-y-4">
+      {/* Logo section */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Firmalogo</h3>
+        <div className="flex items-start gap-5">
+          {/* Preview */}
+          <div className="w-32 h-20 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-center bg-gray-50 dark:bg-gray-800 shrink-0 overflow-hidden">
+            {form.logo ? (
+              <img src={form.logo} alt="Logo" className="max-w-full max-h-full object-contain p-1" />
+            ) : (
+              <Image size={24} className="text-gray-300 dark:text-gray-600" />
+            )}
+          </div>
+          <div className="space-y-2 flex-1">
+            <p className="text-xs text-gray-500">Upload et firmalogo (PNG, SVG eller JPG). Logoen vises i sidebar, topbar og på print.</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                <Upload size={13} /> Vælg fil
+              </button>
+              {form.logo && (
+                <button
+                  onClick={() => setForm(f => ({ ...f, logo: undefined }))}
+                  className="text-xs text-red-500 hover:text-red-700"
+                >
+                  Fjern logo
+                </button>
               )}
             </div>
-          ))}
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+            <div className="space-y-1.5 pt-1">
+              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={form.logoOnPrint}
+                  onChange={e => setForm(f => ({ ...f, logoOnPrint: e.target.checked }))}
+                  className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600"
+                />
+                Vis logo på printede arbejdsordrer
+              </label>
+              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={form.logoOnQR}
+                  onChange={e => setForm(f => ({ ...f, logoOnQR: e.target.checked }))}
+                  className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600"
+                />
+                Vis logo på QR-kode labels (valgfrit)
+              </label>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Add new */}
-        <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800">
-          {showForm ? (
-            <CategoryForm
-              onSave={d => { createAssetCategory(d); setShowForm(false) }}
-              onCancel={() => setShowForm(false)}
-            />
-          ) : (
-            <button
-              onClick={() => { setShowForm(true); setEditingId(null) }}
-              className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              <Plus size={14} /> Tilføj kategori
-            </button>
-          )}
+      {/* Company info */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Virksomhedsoplysninger</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1"><Building2 size={11} /> Virksomhedsnavn</label>
+            <input className={inp} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Adresse</label>
+            <input className={inp} value={form.address ?? ''} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">By / Postnummer</label>
+            <div className="flex gap-2">
+              <input className={inp} placeholder="By" value={form.city ?? ''} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} />
+              <input className={`${inp} w-24`} placeholder="8700" value={form.zip ?? ''} onChange={e => setForm(f => ({ ...f, zip: e.target.value }))} />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1"><Phone size={11} /> Telefon</label>
+            <input className={inp} value={form.phone ?? ''} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1"><Mail size={11} /> E-mail</label>
+            <input className={inp} value={form.email ?? ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1"><Hash size={11} /> CVR-nummer</label>
+            <input className={inp} value={form.vatNumber ?? ''} onChange={e => setForm(f => ({ ...f, vatNumber: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1"><Globe size={11} /> Hjemmeside</label>
+            <input className={inp} value={form.website ?? ''} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} />
+          </div>
+        </div>
+        <div className="flex justify-end mt-4">
+          <button
+            onClick={handleSave}
+            className={clsx('flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors', saved ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700')}
+          >
+            <Save size={14} /> {saved ? 'Gemt!' : 'Gem ændringer'}
+          </button>
         </div>
       </div>
     </div>
@@ -520,15 +783,16 @@ function TabGaesteportal() {
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
-type TabId = 'system' | 'enhedskategorier' | 'opslagstabeller' | 'vedligehold' | 'gaesteportal'
+type TabId = 'system' | 'virksomhed' | 'enhedskategorier' | 'opslagstabeller' | 'vedligehold' | 'gaesteportal'
 
 interface TabDef { id: TabId; label: string }
 
 const TABS: TabDef[] = [
   { id: 'system',            label: 'System' },
+  { id: 'virksomhed',        label: 'Virksomhed & Logo' },
   { id: 'enhedskategorier',  label: 'Enhedskategorier' },
   { id: 'opslagstabeller',   label: 'Opslagstabeller' },
-  { id: 'vedligehold',       label: 'Vedligehold og arbejdsordre' },
+  { id: 'vedligehold',       label: 'Vedligehold og AO' },
   { id: 'gaesteportal',      label: 'Gæsteportal' },
 ]
 
@@ -562,6 +826,7 @@ export default function CMMSSettings() {
 
       {/* Tab content */}
       {activeTab === 'system'           && <TabSystem />}
+      {activeTab === 'virksomhed'       && <TabVirksomhed />}
       {activeTab === 'enhedskategorier' && <TabEnhedskategorier />}
       {activeTab === 'opslagstabeller'  && <TabOpslagstabeller />}
       {activeTab === 'vedligehold'      && <TabVedligehold />}

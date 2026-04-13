@@ -1,45 +1,63 @@
 import { useState, useRef, useEffect } from 'react'
-import { Bell } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, User, Settings } from 'lucide-react'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import NotificationPanel from './NotificationPanel'
 
 export default function Topbar() {
-  const [showNotifs, setShowNotifs] = useState(false)
+  const [showNotifs, setShowNotifs]     = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
   const getNotifications = useStore(s => s.getNotifications)
-  const activeUserId = useStore(s => s.activeUserId)
-  const users = useStore(s => s.users)
-  const activeUser = users.find(u => u.id === activeUserId)
+  const auth             = useStore(s => s.auth)
+  const users            = useStore(s => s.users)
+  const companySettings  = useStore(s => s.companySettings)
+  const logout           = useStore(s => s.logout)
+  const navigate         = useNavigate()
+
+  const activeUser = auth ? users.find(u => u.id === auth.userId) : null
   const notifCount = getNotifications().length
-  const panelRef = useRef<HTMLDivElement>(null)
+
+  const panelRef   = useRef<HTMLDivElement>(null)
+  const userRef    = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!showNotifs) return
+    if (!showNotifs && !showUserMenu) return
     function handler(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setShowNotifs(false)
-      }
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setShowNotifs(false)
+      if (userRef.current && !userRef.current.contains(e.target as Node)) setShowUserMenu(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [showNotifs])
+  }, [showNotifs, showUserMenu])
+
+  function handleLogout() {
+    logout()
+    navigate('/login')
+  }
 
   return (
-    <header className="h-12 flex items-center justify-between px-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shrink-0">
+    <header className="h-11 flex items-center justify-between px-4 bg-white dark:bg-[#1a2035] border-b border-slate-200 dark:border-slate-700/60 shrink-0">
+      {/* Left: breadcrumb / page context (empty — sidebar has logo) */}
       <div className="flex items-center gap-2">
-        <span className="text-blue-600 dark:text-blue-400 font-bold text-lg tracking-tight">MaintainIQ</span>
-        <span className="hidden sm:block text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-widest mt-0.5">CMMS</span>
+        {companySettings.logo ? (
+          <img src={companySettings.logo} alt={companySettings.name} className="h-6 object-contain block dark:hidden" />
+        ) : (
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 hidden sm:block">
+            {companySettings.name}
+          </span>
+        )}
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* Notification bell */}
+      <div className="flex items-center gap-1.5">
+        {/* Bell */}
         <div className="relative" ref={panelRef}>
           <button
             onClick={() => setShowNotifs(v => !v)}
-            className="relative p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="relative p-1.5 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
           >
-            <Bell size={18} />
+            <Bell size={17} />
             {notifCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 leading-none">
+              <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 leading-none">
                 {notifCount > 99 ? '99+' : notifCount}
               </span>
             )}
@@ -47,14 +65,54 @@ export default function Topbar() {
           {showNotifs && <NotificationPanel onClose={() => setShowNotifs(false)} />}
         </div>
 
-        {/* User avatar */}
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-blue-600 dark:bg-blue-500 text-white text-xs font-semibold flex items-center justify-center select-none">
-            {activeUser?.initials ?? '?'}
-          </div>
-          <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-300">
-            {activeUser?.name.split(' ')[0]}
-          </span>
+        {/* User menu */}
+        <div className="relative" ref={userRef}>
+          <button
+            onClick={() => setShowUserMenu(v => !v)}
+            className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+          >
+            <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center select-none">
+              {activeUser?.initials ?? '?'}
+            </div>
+            <span className="hidden sm:block text-[13px] font-medium text-slate-700 dark:text-slate-200">
+              {activeUser?.name?.split(' ')[0] ?? 'Bruger'}
+            </span>
+            <ChevronDown size={12} className="text-slate-400" />
+          </button>
+
+          {showUserMenu && (
+            <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50 overflow-hidden">
+              {/* User info */}
+              <div className="px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                <p className="text-xs font-medium text-slate-800 dark:text-slate-200">{activeUser?.name}</p>
+                <p className="text-[11px] text-slate-400 truncate">{activeUser?.email}</p>
+              </div>
+              <div className="py-1">
+                <NavLink
+                  to="/brugere"
+                  onClick={() => setShowUserMenu(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <User size={13} /> Min profil
+                </NavLink>
+                <NavLink
+                  to="/indstillinger"
+                  onClick={() => setShowUserMenu(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <Settings size={13} /> Indstillinger
+                </NavLink>
+              </div>
+              <div className="py-1 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <LogOut size={13} /> Log ud
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

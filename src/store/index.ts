@@ -4,10 +4,12 @@ import type {
   WorkOrder, WorkOrderStatus, Priority, WorkOrderCategory,
   SparePart, PMTask, LogEntry, User, Asset, AssetCategory, LookupTable, LookupItem, Supplier,
   AppNotification, Settings, WidgetConfig, AuditEntry, AuditAction,
+  UserGroup, AuthSession, CompanySettings, Permission,
 } from '../types'
 import {
   USERS, ASSETS, ASSET_CATEGORIES, LOOKUP_TABLES,
   WORK_ORDERS, SPARE_PARTS, SUPPLIERS, PM_TASKS, LOG_ENTRIES,
+  USER_GROUPS, COMPANY_SETTINGS,
 } from '../data/mockData'
 
 interface AppState {
@@ -60,9 +62,28 @@ interface AppState {
   createLogEntry: (entry: Omit<LogEntry, 'id' | 'createdAt'>) => void
   // Actions — Settings / UI
   setActiveUser: (id: string) => void
+  updateUser: (id: string, patch: Partial<User>) => void
   updateSettings: (patch: Partial<Settings>) => void
   updateWidgetConfig: (id: string, displayType: WidgetConfig['displayType']) => void
   setSidebarCollapsed: (v: boolean) => void
+  // Auth
+  auth: AuthSession | null
+  // User Groups
+  userGroups: UserGroup[]
+  // Company
+  companySettings: CompanySettings
+  // Actions — Auth
+  login: (email: string, password: string) => boolean
+  loginWithEntra: () => void
+  logout: () => void
+  // Actions — User Groups
+  createUserGroup: (g: Omit<UserGroup, 'id' | 'isSystem'>) => string
+  updateUserGroup: (id: string, patch: Partial<UserGroup>) => void
+  deleteUserGroup: (id: string) => void
+  // Actions — Company
+  updateCompanySettings: (patch: Partial<CompanySettings>) => void
+  // Helpers
+  getEffectivePermissions: (userId: string) => Permission[]
   // Computed
   getNotifications: () => AppNotification[]
 }
@@ -96,6 +117,18 @@ export const useStore = create<AppState>((set, get) => ({
   logEntries: LOG_ENTRIES,
   activeUserId: 'u4',
   sidebarCollapsed: false,
+  auth: (() => {
+    try {
+      const stored = localStorage.getItem('miq_auth')
+      if (stored) {
+        const session: AuthSession = JSON.parse(stored)
+        if (new Date(session.expiresAt) > new Date()) return session
+      }
+    } catch {}
+    return null
+  })(),
+  userGroups: USER_GROUPS,
+  companySettings: COMPANY_SETTINGS,
   settings: {
     darkMode: false,
     pharmaMode: true,
@@ -407,6 +440,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   setActiveUser: (id) => set({ activeUserId: id }),
 
+  updateUser: (id, patch) => {
+    set(s => ({ users: s.users.map(u => u.id === id ? { ...u, ...patch } : u) }))
+  },
+
   updateSettings: (patch) => {
     set(s => ({ settings: { ...s.settings, ...patch } }))
   },
@@ -420,6 +457,77 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
+
+  login: (email, password) => {
+    const user = get().users.find(
+      u => (u.email === email || u.name === email) && u.passwordHash === password && u.isActive
+    )
+    if (!user) return false
+    const now = new Date()
+    const session: AuthSession = {
+      userId: user.id,
+      loginTime: now.toISOString(),
+      expiresAt: new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString(),
+      method: 'password',
+      mfaVerified: false,
+    }
+    try { localStorage.setItem('miq_auth', JSON.stringify(session)) } catch {}
+    set({ auth: session, activeUserId: user.id })
+    return true
+  },
+
+  loginWithEntra: () => {
+    // Mock Entra SSO — log in as first Entra-enabled user or fallback to u4
+    const user = get().users.find(u => u.entraId || u.isActive) ?? get().users[0]
+    const now = new Date()
+    const session: AuthSession = {
+      userId: user.id,
+      loginTime: now.toISOString(),
+      expiresAt: new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString(),
+      method: 'entra',
+      mfaVerified: true,
+    }
+    try { localStorage.setItem('miq_auth', JSON.stringify(session)) } catch {}
+    set({ auth: session, activeUserId: user.id })
+  },
+
+  logout: () => {
+    try { localStorage.removeItem('miq_auth') } catch {}
+    set({ auth: null })
+  },
+
+  createUserGroup: (g) => {
+    const existing = get().userGroups.map(ug => ug.id)
+    const id = nextId('ug-', existing)
+    set(s => ({ userGroups: [...s.userGroups, { ...g, id, isSystem: false }] }))
+    return id
+  },
+
+  updateUserGroup: (id, patch) => {
+    set(s => ({
+      userGroups: s.userGroups.map(g => g.id === id ? { ...g, ...patch } : g),
+    }))
+  },
+
+  deleteUserGroup: (id) => {
+    set(s => ({ userGroups: s.userGroups.filter(g => g.id !== id) }))
+  },
+
+  updateCompanySettings: (patch) => {
+    set(s => ({ companySettings: { ...s.companySettings, ...patch } }))
+  },
+
+  getEffectivePermissions: (userId) => {
+    const { users, userGroups } = get()
+    const user = users.find(u => u.id === userId)
+    if (!user) return []
+    const perms = new Set<Permission>()
+    user.groupIds.forEach(gid => {
+      const group = userGroups.find(g => g.id === gid)
+      group?.permissions.forEach(p => perms.add(p))
+    })
+    return Array.from(perms)
+  },
 
   getNotifications: () => {
     const { workOrders, spareParts, pmTasks, settings } = get()

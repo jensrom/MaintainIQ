@@ -3,11 +3,12 @@ import { format, parseISO, isValid } from 'date-fns'
 import { da } from 'date-fns/locale'
 import {
   Plus, Search, X, Settings2, AlertTriangle, ChevronUp, ChevronDown,
-  Check, Clock, MessageSquare, CheckSquare, Wrench,
+  Check, Clock, MessageSquare, CheckSquare, Wrench, ShieldCheck,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
 import type { WorkOrderStatus, Priority, WorkOrderCategory, WorkOrder } from '../types'
+import PharmaSignoffModal from '../components/PharmaSignoffModal'
 
 const ALL_STATUSES: WorkOrderStatus[] = [
   'Arbejdsanmodning', 'Åben', 'I gang', 'Planlagt', 'Afventer', 'Afsluttet', 'Annulleret',
@@ -47,6 +48,8 @@ function StatusBadge({ status }: { status: WorkOrderStatus }) {
 function WOPanel({ wo, onClose }: { wo: WorkOrder; onClose: () => void }) {
   const [tab, setTab] = useState<'detaljer' | 'opgaver' | 'timer' | 'dele'>('detaljer')
   const { users, assets, spareParts, updateWorkOrder, addComment, logTime, toggleTask, addSparePart } = useStore()
+  const pharmaMode = useStore(s => s.settings.pharmaMode)
+  const [showPharmaSignoff, setShowPharmaSignoff] = useState(false)
   const today = new Date().toISOString().split('T')[0]
 
   const [comment, setComment] = useState('')
@@ -144,6 +147,29 @@ function WOPanel({ wo, onClose }: { wo: WorkOrder; onClose: () => void }) {
                 ))}
               </select>
             </div>
+
+            {/* Pharma GMP signoff button */}
+            {wo.isPharma && pharmaMode && wo.status !== 'Afsluttet' && wo.status !== 'Annulleret' && (
+              <button
+                onClick={() => setShowPharmaSignoff(true)}
+                className="w-full flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                <ShieldCheck size={14} /> Afslut med GMP-signatur (21 CFR Part 11)
+              </button>
+            )}
+
+            {showPharmaSignoff && (
+              <PharmaSignoffModal
+                actionLabel="Afslut arbejdsordre"
+                entityName={`${wo.id}: ${wo.title}`}
+                onConfirm={(comment) => {
+                  updateWorkOrder(wo.id, { status: 'Afsluttet' })
+                  addComment(wo.id, `[GMP-signatur] ${comment}`)
+                  setShowPharmaSignoff(false)
+                }}
+                onCancel={() => setShowPharmaSignoff(false)}
+              />
+            )}
 
             {/* Description */}
             <div>

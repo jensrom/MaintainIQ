@@ -18,6 +18,7 @@ import UserGroups from './screens/UserGroups'
 import ApiReference from './screens/ApiReference'
 import Analysevaerktoj from './screens/Analysevaerktoj'
 import AuditTrail from './screens/AuditTrail'
+import Kalibrering from './screens/Kalibrering'
 import Login from './screens/Login'
 import { useStore } from './store'
 
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="api"                element={<ApiReference />} />
           <Route path="analysevaerktoj"    element={<Analysevaerktoj />} />
           <Route path="audit"              element={<AuditTrail />} />
+          <Route path="kalibrering"        element={<Kalibrering />} />
           <Route path="*"                  element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

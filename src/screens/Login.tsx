@@ -152,7 +152,7 @@ export default function Login() {
         {/* Demo hint */}
         <div className="mt-4 text-center">
           <p className="text-xs text-slate-400 dark:text-slate-500">
-            Demo: brug e-mail + adgangskode <span className="font-mono bg-slate-200 dark:bg-slate-800 px-1 rounded">Demo1234!</span>
+            Demo: <span className="font-mono bg-slate-200 dark:bg-slate-800 px-1 rounded">jens.rom@novotek.com</span> / <span className="font-mono bg-slate-200 dark:bg-slate-800 px-1 rounded">Demo123</span>
           </p>
         </div>
 

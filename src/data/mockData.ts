@@ -199,6 +199,20 @@ export const USERS: User[] = [
     mfaEnabled: true,
     passwordHash: 'Demo1234!',
   },
+  {
+    id: 'u-admin',
+    name: 'Jens Rom',
+    initials: 'JR',
+    title: 'System Administrator',
+    email: 'jens.rom@novotek.com',
+    phone: '+45 00 00 00 00',
+    role: 'Driftsleder',
+    hourlyRate: 0,
+    groupIds: ['ug-1'],
+    isActive: true,
+    mfaEnabled: false,
+    passwordHash: 'Demo123',
+  },
 ]
 
 export const ASSETS: Asset[] = [

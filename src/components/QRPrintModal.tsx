@@ -3,6 +3,7 @@ import QRCode from 'react-qr-code'
 import { X, Printer, ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
 import type { Asset } from '../types'
+import { useStore } from '../store'
 
 // ─── Label layout definitions ─────────────────────────────────────────────────
 
@@ -69,7 +70,9 @@ const LAYOUTS: LayoutDef[] = [
 
 // ─── Individual label renderers ───────────────────────────────────────────────
 
-function LabelA({ asset }: { asset: Asset }) {
+interface LabelProps { asset: Asset; logo?: string; showLogo: boolean }
+
+function LabelA({ asset }: LabelProps) {
   const qr = `MAINTAINIQ:${asset.id}`
   return (
     <div className="flex items-center gap-2 w-full h-full p-1.5 bg-white border border-gray-300 rounded">
@@ -82,24 +85,32 @@ function LabelA({ asset }: { asset: Asset }) {
   )
 }
 
-function LabelB({ asset }: { asset: Asset }) {
+function LabelB({ asset, logo, showLogo }: LabelProps) {
   const qr = `MAINTAINIQ:${asset.id}`
   return (
     <div className="flex flex-col items-center justify-center gap-1 w-full h-full p-2 bg-white border border-gray-300 rounded">
-      <QRCode value={qr} size={80} />
+      <QRCode value={qr} size={showLogo && logo ? 64 : 80} />
       <p className="text-[11px] font-bold text-gray-900 text-center leading-tight mt-1">{asset.code}</p>
       <p className="text-[9px] text-gray-500 text-center truncate w-full px-1">{asset.name}</p>
+      {showLogo && logo && (
+        <img src={logo} alt="" className="h-4 object-contain mt-0.5 opacity-70" />
+      )}
     </div>
   )
 }
 
-function LabelC({ asset }: { asset: Asset }) {
+function LabelC({ asset, logo, showLogo }: LabelProps) {
   const qr = `MAINTAINIQ:${asset.id}`
   return (
     <div className="flex items-center gap-3 w-full h-full px-3 py-2 bg-white border border-gray-300 rounded">
       <QRCode value={qr} size={90} />
       <div className="flex-1 min-w-0 space-y-0.5">
-        <p className="text-[14px] font-bold text-gray-900 truncate">{asset.code}</p>
+        <div className="flex items-start justify-between gap-1">
+          <p className="text-[14px] font-bold text-gray-900 truncate">{asset.code}</p>
+          {showLogo && logo && (
+            <img src={logo} alt="" className="h-5 object-contain shrink-0 opacity-70" />
+          )}
+        </div>
         <p className="text-[11px] font-medium text-gray-700 truncate">{asset.name}</p>
         {asset.description && (
           <p className="text-[9px] text-gray-400 line-clamp-2">{asset.description}</p>
@@ -112,7 +123,7 @@ function LabelC({ asset }: { asset: Asset }) {
   )
 }
 
-function LabelD({ asset }: { asset: Asset }) {
+function LabelD({ asset }: LabelProps) {
   const qr = `MAINTAINIQ:${asset.id}`
   return (
     <div className="flex items-center gap-1.5 w-full h-full px-1.5 py-1 bg-white border border-gray-300 rounded">
@@ -125,7 +136,7 @@ function LabelD({ asset }: { asset: Asset }) {
   )
 }
 
-const LABEL_RENDERERS: Record<LabelLayout, React.ComponentType<{ asset: Asset }>> = {
+const LABEL_RENDERERS: Record<LabelLayout, React.ComponentType<LabelProps>> = {
   A: LabelA,
   B: LabelB,
   C: LabelC,
@@ -134,7 +145,7 @@ const LABEL_RENDERERS: Record<LabelLayout, React.ComponentType<{ asset: Asset }>
 
 // ─── Print logic ──────────────────────────────────────────────────────────────
 
-function buildPrintHtml(assets: Asset[], layout: LabelLayout): string {
+function buildPrintHtml(assets: Asset[], layout: LabelLayout, logo?: string, showLogo?: boolean): string {
   const lDef = LAYOUTS.find(l => l.id === layout)!
 
   const renderQRSvg = (assetId: string, size: number) => {
@@ -163,17 +174,27 @@ function buildPrintHtml(assets: Asset[], layout: LabelLayout): string {
       </div>`
     }
     if (layout === 'B') {
+      const logoHtml = showLogo && logo
+        ? `<img src="${logo}" alt="" style="height:14px;object-fit:contain;opacity:0.7;margin-top:2px;" />`
+        : ''
       return `<div style="${labelStyle};flex-direction:column;align-items:center;">
-        ${renderQRSvg(asset.id, qrSize)}
+        ${renderQRSvg(asset.id, showLogo && logo ? 64 : qrSize)}
         <p style="font-size:11px;font-weight:700;margin:3px 0 0;text-align:center;">${asset.code}</p>
         <p style="font-size:8px;color:#666;margin:1px 0 0;text-align:center;">${asset.name}</p>
+        ${logoHtml}
       </div>`
     }
     if (layout === 'C') {
+      const logoHtml = showLogo && logo
+        ? `<img src="${logo}" alt="" style="height:18px;object-fit:contain;opacity:0.7;float:right;margin-left:4px;" />`
+        : ''
       return `<div style="${labelStyle};gap:8px;">
         ${renderQRSvg(asset.id, qrSize)}
         <div style="flex:1;min-width:0;">
-          <p style="font-size:13px;font-weight:700;margin:0;">${asset.code}</p>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+            <p style="font-size:13px;font-weight:700;margin:0;">${asset.code}</p>
+            ${logoHtml}
+          </div>
           <p style="font-size:10px;font-weight:600;margin:2px 0 0;color:#333;">${asset.name}</p>
           ${asset.description ? `<p style="font-size:8px;color:#666;margin:2px 0 0;">${asset.description.substring(0, 60)}</p>` : ''}
           ${asset.brand ? `<p style="font-size:8px;color:#888;margin:1px 0 0;">${asset.brand}${asset.model ? ' ' + asset.model : ''}</p>` : ''}
@@ -216,8 +237,8 @@ function buildPrintHtml(assets: Asset[], layout: LabelLayout): string {
 </html>`
 }
 
-function openPrintWindow(assets: Asset[], layout: LabelLayout) {
-  const html = buildPrintHtml(assets, layout)
+function openPrintWindow(assets: Asset[], layout: LabelLayout, logo?: string, showLogo?: boolean) {
+  const html = buildPrintHtml(assets, layout, logo, showLogo)
   const win = window.open('', '_blank', 'width=800,height=600')
   if (!win) return
   win.document.write(html)
@@ -237,9 +258,13 @@ export default function QRPrintModal({
   assets: Asset[]
   onClose: () => void
 }) {
+  const companySettings = useStore(s => s.companySettings)
   const [layout, setLayout] = useState<LabelLayout>('C')
   const activeLayout = LAYOUTS.find(l => l.id === layout)!
   const LabelRenderer = LABEL_RENDERERS[layout]
+
+  const showLogo = companySettings.logoOnQR && !!companySettings.logo
+  const logo = companySettings.logo
 
   // Preview: show max 4
   const previewAssets = assets.slice(0, 4)
@@ -314,7 +339,7 @@ export default function QRPrintModal({
                     layout === 'D' && 'w-full h-[80px]',
                   )}
                 >
-                  <LabelRenderer asset={asset} />
+                  <LabelRenderer asset={asset} logo={logo} showLogo={showLogo} />
                 </div>
               ))}
               {assets.length > 4 && (
@@ -345,7 +370,7 @@ export default function QRPrintModal({
             Printer åbner i nyt vindue. Vælg labelprinter og deaktivér sidehoved/sidefod.
           </p>
           <button
-            onClick={() => openPrintWindow(assets, layout)}
+            onClick={() => openPrintWindow(assets, layout, logo, showLogo)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
           >
             <Printer size={15} />

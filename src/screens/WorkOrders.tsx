@@ -3,11 +3,11 @@ import { format, parseISO, isValid } from 'date-fns'
 import { da } from 'date-fns/locale'
 import {
   Plus, Search, X, Settings2, AlertTriangle, ChevronUp, ChevronDown,
-  Check, Clock, MessageSquare, CheckSquare, Wrench, ShieldCheck,
+  Check, Clock, MessageSquare, CheckSquare, Wrench, ShieldCheck, Printer,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
-import type { WorkOrderStatus, Priority, WorkOrderCategory, WorkOrder } from '../types'
+import type { WorkOrderStatus, Priority, WorkOrderCategory, WorkOrder, User, SparePart, CompanySettings } from '../types'
 import PharmaSignoffModal from '../components/PharmaSignoffModal'
 
 const ALL_STATUSES: WorkOrderStatus[] = [
@@ -44,11 +44,107 @@ function StatusBadge({ status }: { status: WorkOrderStatus }) {
   return <span className={clsx('inline-block px-2 py-0.5 rounded text-[11px] font-medium', STATUS_COLORS[status])}>{status}</span>
 }
 
+// ---- WO Print ----
+function buildWOPrintHtml(
+  wo: WorkOrder,
+  opts: { asset?: { name: string }; assignee?: { name: string }; users: User[]; spareParts: SparePart[]; cs: CompanySettings }
+): string {
+  const { asset, assignee, users, spareParts, cs } = opts
+  const now = new Date().toLocaleDateString('da-DK', { day: '2-digit', month: 'long', year: 'numeric' })
+  const logoHtml = cs.logoOnPrint && cs.logo
+    ? `<img src="${cs.logo}" alt="${cs.name}" style="height:36px;object-fit:contain;" />`
+    : `<span style="font-size:18px;font-weight:700;color:#1e3a5f;">${cs.name}</span>`
+  const tasksHtml = wo.tasks.length
+    ? wo.tasks.map(t => `<tr><td style="padding:4px 8px;border-bottom:1px solid #f0f0f0;">
+        <span style="display:inline-block;width:13px;height:13px;border:1.5px solid ${t.done ? '#2563eb' : '#cbd5e1'};border-radius:3px;background:${t.done ? '#2563eb' : '#fff'};vertical-align:middle;margin-right:7px;"></span>
+        <span style="${t.done ? 'text-decoration:line-through;color:#94a3b8;' : ''}">${t.text}</span>
+      </td></tr>`).join('')
+    : '<tr><td style="padding:8px;color:#94a3b8;font-style:italic;">Ingen opgaver</td></tr>'
+  const timeTotal = wo.timeLog.reduce((s, t) => s + t.hours, 0)
+  const timeHtml = wo.timeLog.length
+    ? wo.timeLog.map(t => {
+        const u = users.find(x => x.id === t.userId)
+        return `<tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:4px 8px;">${u?.name ?? t.userId}</td>
+          <td style="padding:4px 8px;">${t.hours} t</td>
+          <td style="padding:4px 8px;color:#64748b;">${t.note}</td>
+          <td style="padding:4px 8px;color:#94a3b8;">${t.date}</td>
+        </tr>`
+      }).join('')
+    : '<tr><td colspan="4" style="padding:8px;color:#94a3b8;font-style:italic;">Ingen timer</td></tr>'
+  const partsHtml = wo.spareParts.length
+    ? wo.spareParts.map(sp => {
+        const p = spareParts.find(r => r.id === sp.sparePartId)
+        return `<tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:4px 8px;">${p?.name ?? sp.sparePartId}</td>
+          <td style="padding:4px 8px;color:#64748b;font-family:monospace;">${p?.partNumber ?? '—'}</td>
+          <td style="padding:4px 8px;">${sp.quantity} stk</td>
+          <td style="padding:4px 8px;color:#64748b;">${(sp.quantity * (p?.price ?? 0)).toLocaleString('da-DK')} kr.</td>
+        </tr>`
+      }).join('')
+    : '<tr><td colspan="4" style="padding:8px;color:#94a3b8;font-style:italic;">Ingen reservedele</td></tr>'
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>AO ${wo.id}</title>
+<style>*{box-sizing:border-box;font-family:Arial,sans-serif;font-size:12px;}
+@page{size:A4;margin:15mm;}body{color:#111;}
+h2{font-size:16px;margin:0 0 2px;}
+h3{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:#94a3b8;margin:16px 0 6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px;}
+table{width:100%;border-collapse:collapse;}
+th{padding:5px 8px;text-align:left;background:#f8fafc;font-size:10px;color:#64748b;border-bottom:1px solid #e2e8f0;}
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.field label{display:block;font-size:10px;color:#94a3b8;margin-bottom:2px;}.field p{margin:0;font-weight:600;}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head>
+<body>
+<div style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid #1e3a5f;padding-bottom:10px;margin-bottom:14px;">
+  <div>${logoHtml}</div>
+  <div style="text-align:right;">
+    <p style="margin:0;font-size:10px;color:#94a3b8;">Arbejdsordre</p>
+    <p style="margin:2px 0;font-size:22px;font-weight:700;font-family:monospace;color:#1e3a5f;">${wo.id}</p>
+    ${wo.isPharma ? '<span class="badge" style="background:#dbeafe;color:#1d4ed8;">🧪 GMP / Pharma</span>' : ''}
+  </div>
+</div>
+<h2>${wo.title}</h2>
+<div style="display:flex;gap:6px;align-items:center;margin:6px 0 14px;">
+  <span class="badge" style="background:#f1f5f9;color:#334155;">${wo.status}</span>
+  <span class="badge" style="background:#f1f5f9;color:#334155;">${wo.priority}</span>
+  <span class="badge" style="background:#f1f5f9;color:#334155;">${wo.category}</span>
+</div>
+<div class="grid">
+  <div class="field"><label>Aktiv</label><p>${asset?.name ?? '—'}</p></div>
+  <div class="field"><label>Ansvarlig</label><p>${assignee?.name ?? 'Ikke tildelt'}</p></div>
+  <div class="field"><label>Oprettet</label><p>${wo.createdAt}</p></div>
+  <div class="field"><label>Forfaldsdato</label><p>${wo.dueDate}</p></div>
+</div>
+${wo.description ? `<h3>Beskrivelse</h3><p style="color:#475569;margin:0 0 4px;line-height:1.5;">${wo.description}</p>` : ''}
+<h3>Opgaver</h3><table><tbody>${tasksHtml}</tbody></table>
+<h3>Timer — total ${timeTotal.toFixed(1)} t</h3>
+<table><thead><tr><th>Medarbejder</th><th>Timer</th><th>Note</th><th>Dato</th></tr></thead><tbody>${timeHtml}</tbody></table>
+<h3>Reservedele</h3>
+<table><thead><tr><th>Navn</th><th>Varenr.</th><th>Antal</th><th>Pris</th></tr></thead><tbody>${partsHtml}</tbody></table>
+<div style="position:fixed;bottom:0;left:0;right:0;border-top:1px solid #e2e8f0;padding:5px 15mm;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;background:white;">
+  <span>Udskrevet: ${now}</span><span>MaintainIQ — ${cs.name}</span>
+</div>
+</body></html>`
+}
+
+function openWOPrint(
+  wo: WorkOrder,
+  opts: { asset?: { name: string }; assignee?: { name: string }; users: User[]; spareParts: SparePart[]; cs: CompanySettings }
+) {
+  const html = buildWOPrintHtml(wo, opts)
+  const win = window.open('', '_blank', 'width=900,height=700')
+  if (!win) return
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => { win.focus(); win.print() }
+}
+
 // ---- Detail Panel Tabs ----
 function WOPanel({ wo, onClose }: { wo: WorkOrder; onClose: () => void }) {
   const [tab, setTab] = useState<'detaljer' | 'opgaver' | 'timer' | 'dele'>('detaljer')
   const { users, assets, spareParts, updateWorkOrder, addComment, logTime, toggleTask, addSparePart } = useStore()
   const pharmaMode = useStore(s => s.settings.pharmaMode)
+  const cs = useStore(s => s.companySettings)
   const [showPharmaSignoff, setShowPharmaSignoff] = useState(false)
   const today = new Date().toISOString().split('T')[0]
 
@@ -87,9 +183,18 @@ function WOPanel({ wo, onClose }: { wo: WorkOrder; onClose: () => void }) {
           </div>
           <h2 className="font-semibold text-gray-900 dark:text-gray-100 mt-1">{wo.title}</h2>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">
-          <X size={16} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => openWOPrint(wo, { asset, assignee: user(wo.assigneeId) ?? undefined, users, spareParts, cs })}
+            title="Print arbejdsordre"
+            className="p-1.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+          >
+            <Printer size={15} />
+          </button>
+          <button onClick={onClose} className="p-1.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -504,6 +609,8 @@ function ColumnDesigner({ columns, onClose, onChange }: {
 }
 
 // ---- Main Component ----
+const PRIORITY_ORDER: Record<Priority, number> = { Kritisk: 0, Høj: 1, Normal: 2, Lav: 3 }
+
 export default function WorkOrders() {
   const { workOrders, assets, users } = useStore()
   const [filterStatus, setFilterStatus] = useState<WorkOrderStatus | null>(null)
@@ -512,7 +619,14 @@ export default function WorkOrders() {
   const [showCreate, setShowCreate] = useState(false)
   const [showColumnDesigner, setShowColumnDesigner] = useState(false)
   const [columns, setColumns] = useState(DEFAULT_COLUMNS)
+  const [sortCol, setSortCol] = useState<string>('createdAt')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const today = new Date().toISOString().split('T')[0]
+
+  function toggleSort(col: string) {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(col); setSortDir('asc') }
+  }
 
   const statusCounts = useMemo(() => {
     const counts: Partial<Record<WorkOrderStatus, number>> = {}
@@ -521,7 +635,7 @@ export default function WorkOrders() {
   }, [workOrders])
 
   const filtered = useMemo(() => {
-    return workOrders.filter(wo => {
+    const list = workOrders.filter(wo => {
       if (filterStatus && wo.status !== filterStatus) return false
       if (search) {
         const asset = assets.find(a => a.id === wo.assetId)
@@ -530,7 +644,17 @@ export default function WorkOrders() {
       }
       return true
     })
-  }, [workOrders, filterStatus, search, assets])
+    return [...list].sort((a, b) => {
+      let av: string | number = '', bv: string | number = ''
+      if (sortCol === 'priority') { av = PRIORITY_ORDER[a.priority]; bv = PRIORITY_ORDER[b.priority] }
+      else if (sortCol === 'asset') { av = assets.find(x => x.id === a.assetId)?.name ?? ''; bv = assets.find(x => x.id === b.assetId)?.name ?? '' }
+      else if (sortCol === 'assignee') { av = users.find(x => x.id === a.assigneeId)?.name ?? ''; bv = users.find(x => x.id === b.assigneeId)?.name ?? '' }
+      else av = (a as unknown as Record<string, string>)[sortCol] ?? '', bv = (b as unknown as Record<string, string>)[sortCol] ?? ''
+      if (av < bv) return sortDir === 'asc' ? -1 : 1
+      if (av > bv) return sortDir === 'asc' ? 1 : -1
+      return 0
+    })
+  }, [workOrders, filterStatus, search, assets, users, sortCol, sortDir])
 
   function renderCell(wo: WorkOrder, col: string) {
     const asset = assets.find(a => a.id === wo.assetId)
@@ -619,14 +743,25 @@ export default function WorkOrders() {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 dark:border-gray-800">
+              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
                 {columns.map(col => (
-                  <th key={col} className="text-left px-4 py-2.5 text-xs font-medium text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                    {COLUMN_LABELS[col]}
+                  <th
+                    key={col}
+                    onClick={() => toggleSort(col)}
+                    className="text-left px-3 py-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap cursor-pointer hover:text-slate-600 dark:hover:text-slate-200 select-none"
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {COLUMN_LABELS[col]}
+                      {sortCol === col
+                        ? sortDir === 'asc'
+                          ? <ChevronUp size={11} className="text-blue-500" />
+                          : <ChevronDown size={11} className="text-blue-500" />
+                        : <ChevronUp size={11} className="opacity-0 group-hover:opacity-30" />}
+                    </span>
                   </th>
                 ))}
               </tr>
@@ -634,7 +769,7 @@ export default function WorkOrders() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={columns.length} className="px-3 py-10 text-center text-sm text-slate-400">
                     Ingen arbejdsordrer matcher filteret
                   </td>
                 </tr>
@@ -644,12 +779,12 @@ export default function WorkOrders() {
                     key={wo.id}
                     onClick={() => { setSelectedWO(wo); setShowCreate(false) }}
                     className={clsx(
-                      'border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors',
-                      selectedWO?.id === wo.id && 'bg-blue-50 dark:bg-blue-900/20'
+                      'border-b border-slate-50 dark:border-slate-800/60 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 cursor-pointer transition-colors',
+                      selectedWO?.id === wo.id && 'bg-blue-50/60 dark:bg-blue-900/15'
                     )}
                   >
                     {columns.map(col => (
-                      <td key={col} className="px-4 py-2.5">{renderCell(wo, col)}</td>
+                      <td key={col} className="px-3 py-1.5">{renderCell(wo, col)}</td>
                     ))}
                   </tr>
                 ))

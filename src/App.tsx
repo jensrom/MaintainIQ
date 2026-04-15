@@ -19,6 +19,8 @@ import ApiReference from './screens/ApiReference'
 import Analysevaerktoj from './screens/Analysevaerktoj'
 import AuditTrail from './screens/AuditTrail'
 import Kalibrering from './screens/Kalibrering'
+import Afvigelser from './screens/Afvigelser'
+import CAPA from './screens/CAPA'
 import Login from './screens/Login'
 import { useStore } from './store'
 
@@ -73,6 +75,8 @@ export default function App() {
           <Route path="analysevaerktoj"    element={<Analysevaerktoj />} />
           <Route path="audit"              element={<AuditTrail />} />
           <Route path="kalibrering"        element={<Kalibrering />} />
+          <Route path="afvigelser"         element={<Afvigelser />} />
+          <Route path="capa"               element={<CAPA />} />
           <Route path="*"                  element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

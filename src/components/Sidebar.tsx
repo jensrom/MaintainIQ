@@ -5,7 +5,7 @@ import {
   Calendar, BookOpen, Package, Truck, ExternalLink,
   Settings, SlidersHorizontal, Users, Code2, Building2,
   BarChart2, Activity, ShieldCheck, ChevronRight, ChevronDown,
-  LogOut, Shield, UserCog, Bell, FlaskConical,
+  LogOut, Shield, UserCog, Bell, FlaskConical, AlertCircle, ListChecks,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
@@ -36,7 +36,6 @@ const NAV: NavGroup[] = [
       { to: '/planlagt',       icon: <CalendarCheck size={16} />,     label: 'Planlagt vedligehold' },
       { to: '/kalender',       icon: <Calendar size={16} />,          label: 'Kalender' },
       { to: '/logbog',         icon: <BookOpen size={16} />,          label: 'Logbog' },
-      { to: '/kalibrering',    icon: <FlaskConical size={16} />,      label: 'Kalibrering' },
     ],
   },
   {
@@ -50,6 +49,14 @@ const NAV: NavGroup[] = [
     items: [
       { to: '/reservedele',    icon: <Package size={16} />, label: 'Reservedele' },
       { to: '/leverandorer',   icon: <Truck size={16} />,   label: 'Leverandører' },
+    ],
+  },
+  {
+    title: 'Pharma & GMP',
+    items: [
+      { to: '/kalibrering', icon: <FlaskConical size={16} />, label: 'Kalibrering' },
+      { to: '/afvigelser',  icon: <AlertCircle size={16} />,  label: 'Afvigelser' },
+      { to: '/capa',        icon: <ListChecks size={16} />,   label: 'CAPA' },
     ],
   },
   {

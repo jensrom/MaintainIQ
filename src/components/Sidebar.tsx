@@ -5,7 +5,7 @@ import {
   Calendar, BookOpen, Package, Truck, ExternalLink,
   Settings, SlidersHorizontal, Users, Code2, Building2,
   BarChart2, Activity, ShieldCheck, ChevronRight, ChevronDown,
-  LogOut, Shield, UserCog, Bell, FlaskConical, AlertCircle, ListChecks,
+  LogOut, Shield, UserCog, Bell, FlaskConical, AlertCircle, ListChecks, GitPullRequest,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
@@ -54,9 +54,10 @@ const NAV: NavGroup[] = [
   {
     title: 'Pharma & GMP',
     items: [
-      { to: '/kalibrering', icon: <FlaskConical size={16} />, label: 'Kalibrering' },
-      { to: '/afvigelser',  icon: <AlertCircle size={16} />,  label: 'Afvigelser' },
-      { to: '/capa',        icon: <ListChecks size={16} />,   label: 'CAPA' },
+      { to: '/kalibrering',       icon: <FlaskConical size={16} />,   label: 'Kalibrering' },
+      { to: '/afvigelser',        icon: <AlertCircle size={16} />,   label: 'Afvigelser' },
+      { to: '/capa',              icon: <ListChecks size={16} />,    label: 'CAPA' },
+      { to: '/aendringsstyring',  icon: <GitPullRequest size={16} />, label: 'Ændringsstyring' },
     ],
   },
   {

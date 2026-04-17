@@ -21,6 +21,7 @@ import AuditTrail from './screens/AuditTrail'
 import Kalibrering from './screens/Kalibrering'
 import Afvigelser from './screens/Afvigelser'
 import CAPA from './screens/CAPA'
+import Aendringsstyring from './screens/Aendringsstyring'
 import Login from './screens/Login'
 import { useStore } from './store'
 
@@ -77,6 +78,7 @@ export default function App() {
           <Route path="kalibrering"        element={<Kalibrering />} />
           <Route path="afvigelser"         element={<Afvigelser />} />
           <Route path="capa"               element={<CAPA />} />
+          <Route path="aendringsstyring"   element={<Aendringsstyring />} />
           <Route path="*"                  element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

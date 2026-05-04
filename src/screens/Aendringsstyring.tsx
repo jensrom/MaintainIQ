@@ -262,17 +262,42 @@ function DetailPanel({ record, onClose, onUpdate, pharmaMode }: {
   )
 }
 
+const EMPTY_CR_FORM = {
+  title: '', type: 'Udstyr' as ChangeRecord['type'], priority: 'Normal' as ChangeRecord['priority'],
+  requestedBy: '', targetDate: '', description: '', reason: '', impactAssessment: '',
+}
+
 // ── Main screen ──────────────────────────────────────────────────────────────
 export default function Aendringsstyring() {
   const pharmaMode = useStore(s => s.settings.pharmaMode)
+  const activeUser = useStore(s => s.users.find(u => u.id === s.activeUserId))
   const records = useStore(s => s.changeRecords)
   const updateChange = useStore(s => s.updateChange)
+  const createChange = useStore(s => s.createChange)
   const [filterStatus, setFilterStatus] = useState<ChangeStatus | null>(null)
   const [selected, setSelected] = useState<ChangeRecord | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [form, setForm] = useState(EMPTY_CR_FORM)
 
   function update(id: string, patch: Partial<ChangeRecord>) {
     updateChange(id, patch)
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, ...patch } : null)
+  }
+
+  function handleCreate() {
+    if (!form.title.trim() || !form.targetDate || !form.description.trim()) return
+    createChange({
+      ...form,
+      requestedBy: form.requestedBy || activeUser?.name || 'Ukendt',
+      requestedAt: new Date().toISOString().split('T')[0],
+      status: 'Udkast',
+      affectedAssets: [],
+      affectedSOPs: [],
+      reason: form.reason || '—',
+      impactAssessment: form.impactAssessment || '—',
+    })
+    setForm(EMPTY_CR_FORM)
+    setShowCreate(false)
   }
 
   const filtered = useMemo(() =>
@@ -303,7 +328,10 @@ export default function Aendringsstyring() {
           </div>
           <p className="text-sm text-slate-400 mt-0.5">Change Control — {records.length} ændringsanmodninger</p>
         </div>
-        <button className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+        <button
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+        >
           <Plus size={14} /> Ny ændringsanmodning
         </button>
       </div>
@@ -399,6 +427,85 @@ export default function Aendringsstyring() {
             onUpdate={update}
             pharmaMode={pharmaMode}
           />
+        </>
+      )}
+
+      {/* Create panel */}
+      {showCreate && (
+        <>
+          <div className="fixed inset-0 bg-black/20 dark:bg-black/40 z-30" onClick={() => setShowCreate(false)} />
+          <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col z-40">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Ny ændringsanmodning</h2>
+              <button onClick={() => setShowCreate(false)} className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Titel *</label>
+                <input className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Hvad ønskes ændret?" value={form.title}
+                  onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Type</label>
+                  <select className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value as ChangeRecord['type'] }))}>
+                    {(['Udstyr', 'Procedure', 'Software', 'Facility', 'Personale', 'Andet'] as ChangeRecord['type'][]).map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Prioritet</label>
+                  <select className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value as ChangeRecord['priority'] }))}>
+                    {(['Kritisk', 'Høj', 'Normal', 'Lav'] as ChangeRecord['priority'][]).map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Anmodet af</label>
+                  <input className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder={activeUser?.name ?? 'Navn'} value={form.requestedBy}
+                    onChange={e => setForm(p => ({ ...p, requestedBy: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Måldato *</label>
+                  <input type="date" className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={form.targetDate} onChange={e => setForm(p => ({ ...p, targetDate: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Beskrivelse *</label>
+                <textarea rows={3} className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Hvad skal ændres og hvordan?" value={form.description}
+                  onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Årsag / Begrundelse</label>
+                <textarea rows={2} className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Hvorfor er ændringen nødvendig?" value={form.reason}
+                  onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Konsekvensanalyse</label>
+                <textarea rows={2} className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Hvad er den forventede påvirkning?" value={form.impactAssessment}
+                  onChange={e => setForm(p => ({ ...p, impactAssessment: e.target.value }))} />
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
+              <button
+                onClick={handleCreate}
+                disabled={!form.title.trim() || !form.targetDate || !form.description.trim()}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg disabled:opacity-40 transition-colors"
+              >
+                Opret ændringsanmodning
+              </button>
+            </div>
+          </div>
         </>
       )}
     </div>

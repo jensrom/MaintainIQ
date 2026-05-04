@@ -129,6 +129,27 @@ export default function Settings() {
           description="Varsling når en planlagt vedligeholdelsesopgave ikke er udført til tiden"
           icon={<Bell size={16} />}
         />
+        <Toggle
+          checked={settings.notifications.openDeviations}
+          onChange={v => updateSettings({ notifications: { ...settings.notifications, openDeviations: v } })}
+          label="Åbne afvigelser"
+          description="Varsling ved åbne GMP-afvigelser der afventer behandling"
+          icon={<Bell size={16} />}
+        />
+        <Toggle
+          checked={settings.notifications.overdueCapa}
+          onChange={v => updateSettings({ notifications: { ...settings.notifications, overdueCapa: v } })}
+          label="Forfaldne CAPA-handlinger"
+          description="Varsling når en CAPA-handling ikke er afsluttet til forfaldsdatoen"
+          icon={<Bell size={16} />}
+        />
+        <Toggle
+          checked={settings.notifications.pendingChanges}
+          onChange={v => updateSettings({ notifications: { ...settings.notifications, pendingChanges: v } })}
+          label="Afventende ændringsanmodninger"
+          description="Varsling ved ændringsanmodninger der afventer godkendelse"
+          icon={<Bell size={16} />}
+        />
       </section>
     </div>
   )

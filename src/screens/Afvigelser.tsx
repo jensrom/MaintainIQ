@@ -157,17 +157,38 @@ function DetailPanel({ record, onClose, onUpdate, pharmaMode }: {
 
 // ── Main screen ─────────────────────────────────────────────────────────────
 
+const EMPTY_FORM = {
+  title: '', type: 'Udstyr' as DevType, severity: 'Høj' as DevSeverity,
+  reportedBy: '', assetName: '', description: '',
+}
+
 export default function Afvigelser() {
   const pharmaMode = useStore(s => s.settings.pharmaMode)
+  const activeUser = useStore(s => s.users.find(u => u.id === s.activeUserId))
   const records = useStore(s => s.deviations)
   const updateDeviation = useStore(s => s.updateDeviation)
   const createDeviation = useStore(s => s.createDeviation)
   const [filterStatus, setFilterStatus] = useState<DevStatus | null>(null)
   const [selected, setSelected] = useState<DeviationRecord | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
 
   function update(id: string, patch: Partial<DeviationRecord>) {
     updateDeviation(id, patch)
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, ...patch } : null)
+  }
+
+  function handleCreate() {
+    if (!form.title.trim() || !form.description.trim()) return
+    createDeviation({
+      ...form,
+      status: 'Åben',
+      reportedBy: form.reportedBy || activeUser?.name || 'Ukendt',
+      reportedAt: new Date().toISOString().split('T')[0],
+      capaIds: [],
+    })
+    setForm(EMPTY_FORM)
+    setShowCreate(false)
   }
 
   const filtered = useMemo(() =>
@@ -198,7 +219,10 @@ export default function Afvigelser() {
           </div>
           <p className="text-sm text-slate-400 mt-0.5">{records.length} afvigelser registreret</p>
         </div>
-        <button className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+        <button
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+        >
           <Plus size={14} /> Ny afvigelse
         </button>
       </div>
@@ -293,6 +317,79 @@ export default function Afvigelser() {
             onUpdate={update}
             pharmaMode={pharmaMode}
           />
+        </>
+      )}
+
+      {/* Create panel */}
+      {showCreate && (
+        <>
+          <div className="fixed inset-0 bg-black/20 dark:bg-black/40 z-30" onClick={() => setShowCreate(false)} />
+          <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col z-40">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Ny afvigelse</h2>
+              <button onClick={() => setShowCreate(false)} className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {[
+                { label: 'Titel *', key: 'title', placeholder: 'Kort beskrivelse af afvigelsen' },
+                { label: 'Aktiv / Udstyr', key: 'assetName', placeholder: 'F.eks. HVAC HVC-001' },
+                { label: 'Indberettet af', key: 'reportedBy', placeholder: activeUser?.name ?? 'Navn' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">{f.label}</label>
+                  <input
+                    className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder={f.placeholder}
+                    value={(form as Record<string, string>)[f.key]}
+                    onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Type</label>
+                  <select
+                    className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    value={form.type}
+                    onChange={e => setForm(prev => ({ ...prev, type: e.target.value as DevType }))}
+                  >
+                    {(['Procedure', 'Udstyr', 'Miljø', 'Kontaminering', 'Dokumentation'] as DevType[]).map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Alvorlighed</label>
+                  <select
+                    className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    value={form.severity}
+                    onChange={e => setForm(prev => ({ ...prev, severity: e.target.value as DevSeverity }))}
+                  >
+                    {(['Kritisk', 'Høj', 'Medium', 'Lav'] as DevSeverity[]).map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Beskrivelse *</label>
+                <textarea
+                  rows={4}
+                  className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Beskriv hvad der skete..."
+                  value={form.description}
+                  onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
+              <button
+                onClick={handleCreate}
+                disabled={!form.title.trim() || !form.description.trim()}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg disabled:opacity-40 transition-colors"
+              >
+                Opret afvigelse
+              </button>
+            </div>
+          </div>
         </>
       )}
     </div>

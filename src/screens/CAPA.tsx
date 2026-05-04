@@ -193,16 +193,31 @@ function DetailPanel({ record, onClose, onUpdate, pharmaMode }: {
 
 // ── Main screen ──────────────────────────────────────────────────────────────
 
+const EMPTY_CAPA_FORM = {
+  title: '', type: 'Korrigerende' as CAPARecord['type'],
+  deviationId: '', assignee: '', dueDate: '', description: '',
+}
+
 export default function CAPA() {
   const pharmaMode = useStore(s => s.settings.pharmaMode)
   const records = useStore(s => s.capaRecords)
   const updateCapa = useStore(s => s.updateCapa)
+  const createCapa = useStore(s => s.createCapa)
   const [filterStatus, setFilterStatus] = useState<CAPAStatus | null>(null)
   const [selected, setSelected] = useState<CAPARecord | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [form, setForm] = useState(EMPTY_CAPA_FORM)
 
   function update(id: string, patch: Partial<CAPARecord>) {
     updateCapa(id, patch)
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, ...patch } : null)
+  }
+
+  function handleCreate() {
+    if (!form.title.trim() || !form.dueDate || !form.assignee.trim()) return
+    createCapa({ ...form, status: 'Åben', actions: [], actionsDone: [] })
+    setForm(EMPTY_CAPA_FORM)
+    setShowCreate(false)
   }
 
   const filtered = useMemo(() =>
@@ -233,7 +248,10 @@ export default function CAPA() {
           </div>
           <p className="text-sm text-slate-400 mt-0.5">Corrective and Preventive Actions — {records.length} registreret</p>
         </div>
-        <button className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+        <button
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+        >
           <Plus size={14} /> Ny CAPA
         </button>
       </div>
@@ -339,6 +357,71 @@ export default function CAPA() {
             onUpdate={update}
             pharmaMode={pharmaMode}
           />
+        </>
+      )}
+
+      {/* Create panel */}
+      {showCreate && (
+        <>
+          <div className="fixed inset-0 bg-black/20 dark:bg-black/40 z-30" onClick={() => setShowCreate(false)} />
+          <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col z-40">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Ny CAPA</h2>
+              <button onClick={() => setShowCreate(false)} className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Titel *</label>
+                <input className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Hvad skal udføres?" value={form.title}
+                  onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Type</label>
+                  <select className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value as CAPARecord['type'] }))}>
+                    <option>Korrigerende</option>
+                    <option>Forebyggende</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Forfaldsdato *</label>
+                  <input type="date" className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={form.dueDate} onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Afvigelsesreference</label>
+                <input className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="DEV-001" value={form.deviationId}
+                  onChange={e => setForm(p => ({ ...p, deviationId: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Ansvarlig *</label>
+                <input className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Navn på ansvarlig person" value={form.assignee}
+                  onChange={e => setForm(p => ({ ...p, assignee: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Beskrivelse</label>
+                <textarea rows={3} className="w-full text-sm border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Beskriv hvad der skal gøres..." value={form.description}
+                  onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
+              <button
+                onClick={handleCreate}
+                disabled={!form.title.trim() || !form.dueDate || !form.assignee.trim()}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg disabled:opacity-40 transition-colors"
+              >
+                Opret CAPA
+              </button>
+            </div>
+          </div>
         </>
       )}
     </div>

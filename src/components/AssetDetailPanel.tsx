@@ -444,12 +444,12 @@ export default function AssetDetailPanel({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-end">
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       {/* Panel */}
-      <div className="relative z-10 w-full max-w-3xl h-full bg-white dark:bg-gray-950 shadow-2xl flex flex-col overflow-hidden">
+      <div className="relative z-10 w-full max-w-5xl h-[90vh] bg-white dark:bg-gray-950 shadow-2xl flex flex-col overflow-hidden rounded-xl">
 
         {/* ── Top bar ── */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 shrink-0">

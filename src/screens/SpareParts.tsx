@@ -31,7 +31,7 @@ function SparePartDetail({ sp, onClose }: { sp: SparePart; onClose: () => void }
   const status = stockStatus(sp)
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 shadow-2xl flex flex-col z-40">
+    <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md max-h-[90vh] bg-white dark:bg-slate-900 rounded-xl shadow-2xl flex flex-col z-40 overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">

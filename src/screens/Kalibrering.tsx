@@ -129,7 +129,7 @@ function DetailPanel({ record, onClose, onRegister, pharmaMode }: DetailPanelPro
   const isOverdue = record.nextDue < today && record.status !== 'Ude af drift'
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col z-40">
+    <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-sm max-h-[90vh] bg-white dark:bg-slate-900 rounded-xl shadow-2xl flex flex-col z-40 overflow-hidden">
       {/* Panel header */}
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-start justify-between">
         <div>

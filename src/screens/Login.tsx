@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, ShieldCheck, AlertCircle } from 'lucide-react'
 import { useStore } from '../store'
 
@@ -16,6 +17,7 @@ function MicrosoftLogo() {
 
 export default function Login() {
   const { login, loginWithEntra, companySettings } = useStore()
+  const navigate = useNavigate()
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -29,8 +31,12 @@ export default function Login() {
     setLoading(true)
     setTimeout(() => {
       const ok = login(identifier.trim(), password)
-      if (!ok) setError('Forkert e-mail eller adgangskode. Prøv igen.')
-      setLoading(false)
+      if (ok) {
+        navigate('/', { replace: true })
+      } else {
+        setError('Forkert e-mail eller adgangskode. Prøv igen.')
+        setLoading(false)
+      }
     }, 600)
   }
 
@@ -38,7 +44,7 @@ export default function Login() {
     setEntraLoading(true)
     setTimeout(() => {
       loginWithEntra()
-      setEntraLoading(false)
+      navigate('/', { replace: true })
     }, 1200)
   }
 

@@ -130,6 +130,20 @@ export const ASSET_CATEGORIES: AssetCategory[] = [
 
 export const USERS: User[] = [
   {
+    id: 'u0',
+    name: 'Jens Rom',
+    initials: 'JR',
+    title: 'Administrator',
+    email: 'jens.rom@novotek.com',
+    phone: '+45 00 00 00 00',
+    role: 'Driftsleder',
+    hourlyRate: 0,
+    groupIds: ['ug-1'],
+    isActive: true,
+    mfaEnabled: false,
+    passwordHash: 'Demo123',
+  },
+  {
     id: 'u1',
     name: 'Anders Nielsen',
     initials: 'AN',

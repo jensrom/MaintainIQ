@@ -5,12 +5,16 @@ import type {
   SparePart, PMTask, LogEntry, User, Asset, AssetCategory, LookupTable, LookupItem, Supplier,
   AppNotification, Settings, WidgetConfig, AuditEntry, AuditAction,
   UserGroup, AuthSession, CompanySettings, Permission,
+  DeviationRecord, CAPARecord, ChangeRecord,
 } from '../types'
 import {
   USERS, ASSETS, ASSET_CATEGORIES, LOOKUP_TABLES,
   WORK_ORDERS, SPARE_PARTS, SUPPLIERS, PM_TASKS, LOG_ENTRIES,
   USER_GROUPS, COMPANY_SETTINGS,
+  INITIAL_DEVIATIONS, INITIAL_CAPA, INITIAL_CHANGES,
 } from '../data/mockData'
+
+const api = window.electronAPI
 
 interface AppState {
   // Data
@@ -82,6 +86,20 @@ interface AppState {
   deleteUserGroup: (id: string) => void
   // Actions — Company
   updateCompanySettings: (patch: Partial<CompanySettings>) => void
+  // GMP entities (store-backed, DB-synced)
+  deviations: DeviationRecord[]
+  capaRecords: CAPARecord[]
+  changeRecords: ChangeRecord[]
+  updateDeviation: (id: string, patch: Partial<DeviationRecord>) => void
+  updateCapa: (id: string, patch: Partial<CAPARecord>) => void
+  updateChange: (id: string, patch: Partial<ChangeRecord>) => void
+  createDeviation: (d: Omit<DeviationRecord, 'id'>) => string
+  createCapa: (c: Omit<CAPARecord, 'id'>) => string
+  createChange: (c: Omit<ChangeRecord, 'id'>) => string
+  // Electron DB
+  dbReady: boolean
+  dbError: string | null
+  initFromDb: () => Promise<void>
   // Helpers
   getEffectivePermissions: (userId: string) => Permission[]
   // Computed
@@ -115,6 +133,11 @@ export const useStore = create<AppState>((set, get) => ({
   suppliers: SUPPLIERS,
   pmTasks: PM_TASKS,
   logEntries: LOG_ENTRIES,
+  deviations: INITIAL_DEVIATIONS,
+  capaRecords: INITIAL_CAPA,
+  changeRecords: INITIAL_CHANGES,
+  dbReady: false,
+  dbError: null,
   activeUserId: 'u4',
   sidebarCollapsed: false,
   auth: (() => {
@@ -138,6 +161,9 @@ export const useStore = create<AppState>((set, get) => ({
       lowStock: true,
       emptyStock: true,
       overduePM: true,
+      openDeviations: true,
+      overdueCapa: true,
+      pendingChanges: true,
     },
   },
   widgetConfigs: [
@@ -242,22 +268,22 @@ export const useStore = create<AppState>((set, get) => ({
         action: 'create_wo', entityType: 'work_order', entityId: id, entityName: wo.title,
         details: `Oprettet arbejdsordre "${wo.title}" (${wo.priority} / ${wo.category})` }, ...s.auditLog],
     }))
+    api?.wo_create(newWO).catch(console.error)
     return id
   },
 
   updateWorkOrder: (id, patch) => {
     const wo = get().workOrders.find(w => w.id === id)
     const ts = nowStr()
+    let historyEntry: WorkOrder['history'][0] | undefined
     set(s => ({
       workOrders: s.workOrders.map(w => {
         if (w.id !== id) return w
         const updated = { ...w, ...patch }
         if (patch.status && patch.status !== w.status) {
-          updated.history = [
-            { id: nextId('h', w.history.map(h => h.id)), field: 'Status', oldValue: w.status,
-              newValue: patch.status, userId: s.activeUserId, date: todayStr() },
-            ...w.history,
-          ]
+          historyEntry = { id: nextId('h', w.history.map(h => h.id)), field: 'Status',
+            oldValue: w.status, newValue: patch.status, userId: s.activeUserId, date: todayStr() }
+          updated.history = [historyEntry, ...w.history]
         }
         return updated
       }),
@@ -268,6 +294,7 @@ export const useStore = create<AppState>((set, get) => ({
         ...s.auditLog,
       ] : s.auditLog,
     }))
+    api?.wo_update(id, patch, historyEntry).catch(console.error)
   },
 
   addComment: (woId, text) => {
@@ -413,11 +440,13 @@ export const useStore = create<AppState>((set, get) => ({
   adjustStock: (id, delta) => {
     const sp = get().spareParts.find(s => s.id === id)
     const ts = nowStr()
+    const today = todayStr()
+    const note = delta > 0 ? 'Manuel tilføjelse' : 'Manuel fradrag'
     set(s => ({
       spareParts: s.spareParts.map(part => {
         if (part.id !== id) return part
         const newQty = Math.max(0, part.quantity + delta)
-        return { ...part, quantity: newQty, history: [{ date: todayStr(), change: delta, note: delta > 0 ? 'Manuel tilføjelse' : 'Manuel fradrag' }, ...part.history] }
+        return { ...part, quantity: newQty, history: [{ date: today, change: delta, note }, ...part.history] }
       }),
       auditLog: sp ? [
         { id: nextId('au', s.auditLog.map(a => a.id)), timestamp: ts, userId: s.activeUserId,
@@ -426,6 +455,7 @@ export const useStore = create<AppState>((set, get) => ({
         ...s.auditLog,
       ] : s.auditLog,
     }))
+    api?.sp_adjustStock(id, delta, today, note).catch(console.error)
   },
 
   createLogEntry: (entry) => {
@@ -457,6 +487,74 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
+
+  initFromDb: async () => {
+    if (!api) return
+    try {
+      const data = await api.data_loadAll() as Record<string, unknown>
+      set({
+        users:         (data.users         as typeof USERS)         ?? get().users,
+        userGroups:    (data.userGroups     as typeof USER_GROUPS)   ?? get().userGroups,
+        assets:        (data.assets         as typeof ASSETS)        ?? get().assets,
+        assetCategories:(data.assetCategories as typeof ASSET_CATEGORIES) ?? get().assetCategories,
+        workOrders:    (data.workOrders     as typeof WORK_ORDERS)   ?? get().workOrders,
+        spareParts:    (data.spareParts     as typeof SPARE_PARTS)   ?? get().spareParts,
+        suppliers:     (data.suppliers      as typeof SUPPLIERS)     ?? get().suppliers,
+        pmTasks:       (data.pmTasks        as typeof PM_TASKS)      ?? get().pmTasks,
+        logEntries:    (data.logEntries     as typeof LOG_ENTRIES)   ?? get().logEntries,
+        deviations:    (data.deviations     as DeviationRecord[])    ?? get().deviations,
+        capaRecords:   (data.capaRecords    as CAPARecord[])         ?? get().capaRecords,
+        changeRecords: (data.changeRecords  as ChangeRecord[])       ?? get().changeRecords,
+        widgetConfigs: (data.widgetConfigs  as WidgetConfig[])?.length
+          ? data.widgetConfigs as WidgetConfig[]
+          : get().widgetConfigs,
+        lookupTables:  (data.lookupTables   as LookupTable[])?.length
+          ? data.lookupTables as LookupTable[]
+          : get().lookupTables,
+        ...(data.settings   ? { settings:        data.settings as Settings }        : {}),
+        ...(data.companySettings ? { companySettings: data.companySettings as CompanySettings } : {}),
+        dbReady: true,
+        dbError: null,
+      })
+    } catch (err) {
+      set({ dbError: (err as Error).message, dbReady: false })
+    }
+  },
+
+  // ── GMP actions ──────────────────────────────────────────────────────────────
+  updateDeviation: (id, patch) => {
+    set(s => ({ deviations: s.deviations.map(d => d.id === id ? { ...d, ...patch } : d) }))
+    api?.gmp_updateDeviation(id, patch).catch(console.error)
+  },
+  updateCapa: (id, patch) => {
+    set(s => ({ capaRecords: s.capaRecords.map(c => c.id === id ? { ...c, ...patch } : c) }))
+    api?.gmp_updateCapa(id, patch).catch(console.error)
+  },
+  updateChange: (id, patch) => {
+    set(s => ({ changeRecords: s.changeRecords.map(c => c.id === id ? { ...c, ...patch } : c) }))
+    api?.gmp_updateChange(id, patch).catch(console.error)
+  },
+  createDeviation: (d) => {
+    const id = nextId('DEV-', get().deviations.map(x => x.id))
+    const rec = { ...d, id } as DeviationRecord
+    set(s => ({ deviations: [rec, ...s.deviations] }))
+    api?.gmp_createDeviation(rec).catch(console.error)
+    return id
+  },
+  createCapa: (c) => {
+    const id = nextId('CAPA-', get().capaRecords.map(x => x.id))
+    const rec = { ...c, id } as CAPARecord
+    set(s => ({ capaRecords: [rec, ...s.capaRecords] }))
+    api?.gmp_createCapa(rec).catch(console.error)
+    return id
+  },
+  createChange: (c) => {
+    const id = nextId('CR-', get().changeRecords.map(x => x.id))
+    const rec = { ...c, id } as ChangeRecord
+    set(s => ({ changeRecords: [rec, ...s.changeRecords] }))
+    api?.gmp_createChange(rec).catch(console.error)
+    return id
+  },
 
   login: (email, password) => {
     const user = get().users.find(
@@ -530,7 +628,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   getNotifications: () => {
-    const { workOrders, spareParts, pmTasks, settings } = get()
+    const { workOrders, spareParts, pmTasks, settings, deviations, capaRecords, changeRecords } = get()
     const notes: AppNotification[] = []
     const today = todayStr()
 
@@ -608,6 +706,40 @@ export const useStore = create<AppState>((set, get) => ({
             createdAt: today,
           })
         })
+    }
+
+    const notifSettings = settings.notifications as Record<string, boolean>
+
+    if (notifSettings.openDeviations) {
+      deviations
+        .filter(d => ['Åben', 'Under undersøgelse'].includes(d.status))
+        .slice(0, 5)
+        .forEach(d => notes.push({
+          id: `n_dev_${d.id}`, type: 'open_deviation' as AppNotification['type'],
+          message: `Åben afvigelse: ${d.title}`,
+          target: '/afvigelser', targetId: d.id, createdAt: today,
+        }))
+    }
+
+    if (notifSettings.overdueCapa) {
+      capaRecords
+        .filter(c => c.dueDate < today && !['Verificeret', 'Lukket'].includes(c.status))
+        .forEach(c => notes.push({
+          id: `n_capa_${c.id}`, type: 'overdue_capa' as AppNotification['type'],
+          message: `Forfalden CAPA: ${c.title}`,
+          target: '/capa', targetId: c.id, createdAt: today,
+        }))
+    }
+
+    if (notifSettings.pendingChanges) {
+      changeRecords
+        .filter(c => c.status === 'Under vurdering')
+        .slice(0, 5)
+        .forEach(c => notes.push({
+          id: `n_cr_${c.id}`, type: 'pending_change' as AppNotification['type'],
+          message: `Afventer godkendelse: ${c.title}`,
+          target: '/aendringsstyring', targetId: c.id, createdAt: today,
+        }))
     }
 
     return notes

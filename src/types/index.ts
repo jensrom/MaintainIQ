@@ -61,6 +61,9 @@ export type NotificationType =
   | 'low_stock'
   | 'empty_stock'
   | 'overdue_pm'
+  | 'open_deviation'
+  | 'overdue_capa'
+  | 'pending_change'
 
 export interface User {
   id: string
@@ -290,7 +293,71 @@ export interface Settings {
     lowStock: boolean
     emptyStock: boolean
     overduePM: boolean
+    openDeviations: boolean
+    overdueCapa: boolean
+    pendingChanges: boolean
   }
+}
+
+// ─── GMP Types ────────────────────────────────────────────────────────────────
+
+export type DevType     = 'Procedure' | 'Udstyr' | 'Miljø' | 'Kontaminering' | 'Dokumentation'
+export type DevSeverity = 'Kritisk' | 'Høj' | 'Medium' | 'Lav'
+export type DevStatus   = 'Åben' | 'Under undersøgelse' | 'Afventer CAPA' | 'Verificeret' | 'Lukket'
+
+export interface DeviationRecord {
+  id: string
+  title: string
+  type: DevType
+  severity: DevSeverity
+  status: DevStatus
+  reportedBy: string
+  reportedAt: string
+  assetName: string
+  description: string
+  rootCause?: string
+  capaIds: string[]
+}
+
+export type CAPAType   = 'Korrigerende' | 'Forebyggende'
+export type CAPAStatus = 'Åben' | 'I gang' | 'Afventer verifikation' | 'Verificeret' | 'Lukket'
+
+export interface CAPARecord {
+  id: string
+  title: string
+  type: CAPAType
+  deviationId: string
+  assignee: string
+  dueDate: string
+  status: CAPAStatus
+  description: string
+  actions: string[]
+  actionsDone: boolean[]
+  completedAt?: string
+}
+
+export type ChangeType     = 'Udstyr' | 'Procedure' | 'Software' | 'Facility' | 'Personale' | 'Andet'
+export type ChangePriority = 'Kritisk' | 'Høj' | 'Normal' | 'Lav'
+export type ChangeStatus   = 'Udkast' | 'Under vurdering' | 'Godkendt' | 'Implementeret' | 'Verificeret' | 'Lukket' | 'Afvist'
+
+export interface ChangeRecord {
+  id: string
+  title: string
+  type: ChangeType
+  priority: ChangePriority
+  status: ChangeStatus
+  requestedBy: string
+  requestedAt: string
+  targetDate: string
+  description: string
+  reason: string
+  impactAssessment: string
+  affectedAssets: string[]
+  affectedSOPs: string[]
+  approvedBy?: string
+  approvedAt?: string
+  implementedAt?: string
+  verifiedAt?: string
 }
 
 // ─── Permissions & User Groups ────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { format, parseISO, isValid } from 'date-fns'
 import { da } from 'date-fns/locale'
-import { Check, Plus, X, AlertTriangle, Clock } from 'lucide-react'
+import { Check, Plus, X, AlertTriangle, Pencil, Trash2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
 import type { PMTask, PMIntervalType } from '../types'
@@ -18,7 +18,152 @@ const STATUS_STYLES: Record<PMTask['status'], string> = {
   'Udført': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
 }
 
-function PMDetail({ pm, onClose }: { pm: PMTask; onClose: () => void }) {
+const inp = 'w-full text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2'
+
+interface PMForm {
+  title: string
+  assetIds: string[]
+  intervalType: PMIntervalType
+  frequencyDays: number
+  frequencyLabel: string
+  nextDue: string
+  estimatedHours: number
+  assigneeId: string
+  isPharma: boolean
+  tasks: { id: string; text: string; done: boolean }[]
+}
+
+const EMPTY_FORM: PMForm = {
+  title: '', assetIds: [], intervalType: 'Fast interval',
+  frequencyDays: 30, frequencyLabel: 'Månedlig', nextDue: '',
+  estimatedHours: 2, assigneeId: '', isPharma: false, tasks: [],
+}
+
+function PMFormModal({
+  initial,
+  title,
+  onSave,
+  onClose,
+}: {
+  initial: PMForm
+  title: string
+  onSave: (f: PMForm) => void
+  onClose: () => void
+}) {
+  const { assets, users } = useStore()
+  const [form, setForm] = useState<PMForm>(initial)
+  const [taskText, setTaskText] = useState('')
+
+  function addTask() {
+    if (!taskText.trim()) return
+    setForm(f => ({ ...f, tasks: [...f.tasks, { id: `t${Date.now()}`, text: taskText.trim(), done: false }] }))
+    setTaskText('')
+  }
+
+  function removeTask(id: string) {
+    setForm(f => ({ ...f, tasks: f.tasks.filter(t => t.id !== id) }))
+  }
+
+  function submit() {
+    if (!form.title || !form.nextDue || form.assetIds.length === 0) return
+    onSave({ ...form, assigneeId: form.assigneeId || '' })
+    onClose()
+  }
+
+  return (
+    <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md max-h-[90vh] bg-white dark:bg-slate-900 rounded-xl shadow-2xl flex flex-col z-40 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+        <h2 className="font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+        <button onClick={onClose} className="p-1.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"><X size={16} /></button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Titel *</label>
+          <input className={inp} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Opgavetitel..." />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Aktiver *</label>
+          <select multiple className={clsx(inp, 'h-24')} value={form.assetIds} onChange={e => setForm(f => ({ ...f, assetIds: Array.from(e.target.selectedOptions, o => o.value) }))}>
+            {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+          <p className="text-xs text-gray-400 mt-0.5">Hold Ctrl/Cmd for at vælge flere</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Intervaltype</label>
+            <select className={inp} value={form.intervalType} onChange={e => setForm(f => ({ ...f, intervalType: e.target.value as PMIntervalType }))}>
+              {(['Fast interval', 'Flydende interval', 'Målerbaseret', 'Sæsonbaseret', 'Hændelsesbaseret'] as PMIntervalType[]).map(t => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Interval (dage)</label>
+            <input type="number" className={inp} value={form.frequencyDays} onChange={e => setForm(f => ({ ...f, frequencyDays: parseInt(e.target.value) || 30 }))} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Intervalbeskrivelse</label>
+            <input className={inp} value={form.frequencyLabel} onChange={e => setForm(f => ({ ...f, frequencyLabel: e.target.value }))} placeholder="f.eks. Kvartalsvis" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Næste forfald *</label>
+            <input type="date" className={inp} value={form.nextDue} onChange={e => setForm(f => ({ ...f, nextDue: e.target.value }))} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Est. timer</label>
+            <input type="number" min="0.5" step="0.5" className={inp} value={form.estimatedHours} onChange={e => setForm(f => ({ ...f, estimatedHours: parseFloat(e.target.value) || 0 }))} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Ansvarlig</label>
+            <select className={inp} value={form.assigneeId} onChange={e => setForm(f => ({ ...f, assigneeId: e.target.value }))}>
+              <option value="">Ikke tildelt</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tjekliste</label>
+          <div className="space-y-1 mb-2">
+            {form.tasks.map(t => (
+              <div key={t.id} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
+                <span className="flex-1">{t.text}</span>
+                <button onClick={() => removeTask(t.id)} className="text-gray-400 hover:text-red-500"><X size={12} /></button>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input className={clsx(inp, 'flex-1')} value={taskText} onChange={e => setTaskText(e.target.value)} placeholder="Tilføj opgavepunkt..."
+              onKeyDown={e => { if (e.key === 'Enter') addTask() }} />
+            <button onClick={addTask} className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">+</button>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+          <input type="checkbox" checked={form.isPharma} onChange={e => setForm(f => ({ ...f, isPharma: e.target.checked }))} className="rounded" />
+          🧪 GMP/Pharma-relateret
+        </label>
+      </div>
+      <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex gap-2">
+        <button onClick={onClose} className="flex-1 py-2 border border-gray-200 dark:border-gray-700 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Annuller</button>
+        <button onClick={submit} className="flex-1 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">Gem</button>
+      </div>
+    </div>
+  )
+}
+
+function PMDetail({
+  pm,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  pm: PMTask
+  onClose: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
   const { assets, users, markPMDone, togglePMTask } = useStore()
   const assignee = users.find(u => u.id === pm.assigneeId)
   const pmAssets = pm.assetIds.map(id => assets.find(a => a.id === id)).filter(Boolean)
@@ -26,6 +171,7 @@ function PMDetail({ pm, onClose }: { pm: PMTask; onClose: () => void }) {
   const progress = pm.tasks.length ? Math.round((done / pm.tasks.length) * 100) : 0
   const today = new Date().toISOString().split('T')[0]
   const isOverdue = pm.nextDue < today && pm.status !== 'Udført'
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   return (
     <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md max-h-[90vh] bg-white dark:bg-slate-900 rounded-xl shadow-2xl flex flex-col z-40 overflow-hidden">
@@ -37,8 +183,23 @@ function PMDetail({ pm, onClose }: { pm: PMTask; onClose: () => void }) {
           </div>
           <h2 className="font-semibold text-gray-900 dark:text-gray-100">{pm.title}</h2>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"><X size={16} /></button>
+        <div className="flex items-center gap-1">
+          <button onClick={onEdit} className="p-1.5 rounded text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800" title="Redigér"><Pencil size={15} /></button>
+          <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-800" title="Slet"><Trash2 size={15} /></button>
+          <button onClick={onClose} className="p-1.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"><X size={16} /></button>
+        </div>
       </div>
+
+      {confirmDelete && (
+        <div className="mx-4 mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-sm text-red-700 dark:text-red-300 mb-2">Slet <strong>{pm.title}</strong>? Dette kan ikke fortrydes.</p>
+          <div className="flex gap-2">
+            <button onClick={() => setConfirmDelete(false)} className="flex-1 py-1.5 border border-gray-200 dark:border-gray-700 text-xs rounded-lg text-gray-600 dark:text-gray-400">Annuller</button>
+            <button onClick={onDelete} className="flex-1 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700">Slet</button>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
@@ -114,120 +275,25 @@ function PMDetail({ pm, onClose }: { pm: PMTask; onClose: () => void }) {
   )
 }
 
-function CreatePMForm({ onClose }: { onClose: () => void }) {
-  const { assets, users, createPMTask } = useStore()
-  const [form, setForm] = useState({
-    title: '', assetIds: [] as string[], intervalType: 'Fast interval' as PMIntervalType,
-    frequencyDays: 30, frequencyLabel: 'Månedlig', nextDue: '', estimatedHours: 2,
-    assigneeId: '', isPharma: false, tasks: [] as { id: string; text: string; done: boolean }[],
-  })
-  const [taskText, setTaskText] = useState('')
-
-  function addTask() {
-    if (!taskText.trim()) return
-    setForm(f => ({ ...f, tasks: [...f.tasks, { id: `t${Date.now()}`, text: taskText.trim(), done: false }] }))
-    setTaskText('')
-  }
-
-  function submit() {
-    if (!form.title || !form.nextDue || form.assetIds.length === 0) return
-    createPMTask({ ...form, assigneeId: form.assigneeId || null })
-    onClose()
-  }
-
-  const inp = 'w-full text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2'
-
-  return (
-    <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md max-h-[90vh] bg-white dark:bg-slate-900 rounded-xl shadow-2xl flex flex-col z-40 overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-        <h2 className="font-semibold text-gray-900 dark:text-gray-100">Opret PM-opgave</h2>
-        <button onClick={onClose} className="p-1.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"><X size={16} /></button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Titel *</label>
-          <input className={inp} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Opgavetitel..." />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Aktiver *</label>
-          <select multiple className={clsx(inp, 'h-24')} value={form.assetIds} onChange={e => setForm(f => ({ ...f, assetIds: Array.from(e.target.selectedOptions, o => o.value) }))}>
-            {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-          <p className="text-xs text-gray-400 mt-0.5">Hold Ctrl/Cmd for at vælge flere</p>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Intervaltype</label>
-            <select className={inp} value={form.intervalType} onChange={e => setForm(f => ({ ...f, intervalType: e.target.value as PMIntervalType }))}>
-              {(['Fast interval', 'Flydende interval', 'Målerbaseret', 'Sæsonbaseret', 'Hændelsesbaseret'] as PMIntervalType[]).map(t => <option key={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Interval (dage)</label>
-            <input type="number" className={inp} value={form.frequencyDays} onChange={e => setForm(f => ({ ...f, frequencyDays: parseInt(e.target.value) || 30 }))} />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Intervalbeskrivelse</label>
-            <input className={inp} value={form.frequencyLabel} onChange={e => setForm(f => ({ ...f, frequencyLabel: e.target.value }))} placeholder="f.eks. Kvartalsvis" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Næste forfald *</label>
-            <input type="date" className={inp} value={form.nextDue} onChange={e => setForm(f => ({ ...f, nextDue: e.target.value }))} />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Est. timer</label>
-            <input type="number" min="0.5" step="0.5" className={inp} value={form.estimatedHours} onChange={e => setForm(f => ({ ...f, estimatedHours: parseFloat(e.target.value) || 0 }))} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Ansvarlig</label>
-            <select className={inp} value={form.assigneeId} onChange={e => setForm(f => ({ ...f, assigneeId: e.target.value }))}>
-              <option value="">Ikke tildelt</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tjekliste</label>
-          <div className="space-y-1 mb-2">
-            {form.tasks.map(t => (
-              <div key={t.id} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
-                {t.text}
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input className={clsx(inp, 'flex-1')} value={taskText} onChange={e => setTaskText(e.target.value)} placeholder="Tilføj opgavepunkt..."
-              onKeyDown={e => { if (e.key === 'Enter') addTask() }} />
-            <button onClick={addTask} className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">+</button>
-          </div>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-          <input type="checkbox" checked={form.isPharma} onChange={e => setForm(f => ({ ...f, isPharma: e.target.checked }))} className="rounded" />
-          🧪 GMP/Pharma-relateret
-        </label>
-      </div>
-      <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex gap-2">
-        <button onClick={onClose} className="flex-1 py-2 border border-gray-200 dark:border-gray-700 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Annuller</button>
-        <button onClick={submit} className="flex-1 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">Opret</button>
-      </div>
-    </div>
-  )
-}
-
 export default function PlannedMaintenance() {
-  const { pmTasks, assets, users } = useStore()
-  const [selected, setSelected] = useState<PMTask | null>(null)
+  const { pmTasks, assets, users, createPMTask, updatePMTask, deletePMTask } = useStore()
+  const [selected, setSelected] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const today = new Date().toISOString().split('T')[0]
 
   const overdueCount = pmTasks.filter(pm => pm.nextDue < today && pm.status !== 'Udført').length
   const doneCount = pmTasks.filter(pm => pm.status === 'Udført').length
   const compliance = pmTasks.length ? Math.round((doneCount / pmTasks.length) * 100) : 0
+
+  const selectedPm = pmTasks.find(p => p.id === selected) ?? null
+  const editingPm = pmTasks.find(p => p.id === editingId) ?? null
+
+  function handleDelete() {
+    if (!selected) return
+    deletePMTask(selected)
+    setSelected(null)
+  }
 
   return (
     <div className="p-6">
@@ -237,7 +303,7 @@ export default function PlannedMaintenance() {
           <p className="text-sm text-gray-500 dark:text-gray-400">{pmTasks.length} PM-opgaver</p>
         </div>
         <button
-          onClick={() => { setShowCreate(true); setSelected(null) }}
+          onClick={() => { setShowCreate(true); setSelected(null); setEditingId(null) }}
           className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus size={15} /> Ny PM-opgave
@@ -284,8 +350,8 @@ export default function PlannedMaintenance() {
                 return (
                   <tr
                     key={pm.id}
-                    onClick={() => { setSelected(pm); setShowCreate(false) }}
-                    className={clsx('border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer', selected?.id === pm.id && 'bg-blue-50 dark:bg-blue-900/20')}
+                    onClick={() => { setSelected(pm.id); setShowCreate(false); setEditingId(null) }}
+                    className={clsx('border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer', selected === pm.id && 'bg-blue-50 dark:bg-blue-900/20')}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
@@ -335,16 +401,50 @@ export default function PlannedMaintenance() {
         </div>
       </div>
 
-      {selected && (
+      {selectedPm && !editingId && (
         <>
-          <PMDetail pm={pmTasks.find(p => p.id === selected.id)!} onClose={() => setSelected(null)} />
+          <PMDetail
+            pm={pmTasks.find(p => p.id === selected)!}
+            onClose={() => setSelected(null)}
+            onEdit={() => { setEditingId(selected); setSelected(null) }}
+            onDelete={handleDelete}
+          />
           <div className="fixed inset-0 bg-black/20 dark:bg-black/40 z-30" onClick={() => setSelected(null)} />
         </>
       )}
+
       {showCreate && (
         <>
-          <CreatePMForm onClose={() => setShowCreate(false)} />
+          <PMFormModal
+            initial={EMPTY_FORM}
+            title="Opret PM-opgave"
+            onSave={form => createPMTask({ ...form, assigneeId: form.assigneeId || null })}
+            onClose={() => setShowCreate(false)}
+          />
           <div className="fixed inset-0 bg-black/20 dark:bg-black/40 z-30" onClick={() => setShowCreate(false)} />
+        </>
+      )}
+
+      {editingPm && (
+        <>
+          <PMFormModal
+            initial={{
+              title: editingPm.title,
+              assetIds: editingPm.assetIds,
+              intervalType: editingPm.intervalType,
+              frequencyDays: editingPm.frequencyDays,
+              frequencyLabel: editingPm.frequencyLabel,
+              nextDue: editingPm.nextDue,
+              estimatedHours: editingPm.estimatedHours,
+              assigneeId: editingPm.assigneeId ?? '',
+              isPharma: editingPm.isPharma,
+              tasks: editingPm.tasks,
+            }}
+            title="Redigér PM-opgave"
+            onSave={form => updatePMTask(editingId!, { ...form, assigneeId: form.assigneeId || null })}
+            onClose={() => setEditingId(null)}
+          />
+          <div className="fixed inset-0 bg-black/20 dark:bg-black/40 z-30" onClick={() => setEditingId(null)} />
         </>
       )}
     </div>

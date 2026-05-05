@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { format, parseISO, isValid } from 'date-fns'
 import { da } from 'date-fns/locale'
-import { Plus, X, Flag } from 'lucide-react'
+import { Plus, X, Flag, Trash2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
 import type { LogEntryType, LogSeverity } from '../types'
@@ -29,7 +29,7 @@ const LOG_TYPES: LogEntryType[] = ['Observation', 'Fejl', 'Reparation', 'Inspekt
 const SEVERITIES: LogSeverity[] = ['Lav', 'Medium', 'Høj', 'Kritisk']
 
 export default function LogBook() {
-  const { logEntries, assets, users, createLogEntry, activeUserId } = useStore()
+  const { logEntries, assets, users, createLogEntry, deleteLogEntry, activeUserId } = useStore()
   const [typeFilter, setTypeFilter] = useState<LogEntryType | null>(null)
   const [sevFilter, setSevFilter] = useState<LogSeverity | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -193,7 +193,16 @@ export default function LogBook() {
                     </span>
                   )}
                 </div>
-                <span className="text-xs text-gray-400 shrink-0">{fmt(entry.createdAt)}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-gray-400">{fmt(entry.createdAt)}</span>
+                  <button
+                    onClick={() => deleteLogEntry(entry.id)}
+                    className="p-1 rounded text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    title="Slet logpost"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
               <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-2">{entry.text}</p>
               <div className="flex items-center justify-between flex-wrap gap-2">

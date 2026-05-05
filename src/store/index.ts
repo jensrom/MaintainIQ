@@ -60,10 +60,26 @@ interface AppState {
   markPMDone: (id: string) => void
   createPMTask: (task: Omit<PMTask, 'id' | 'status' | 'lastDone'>) => void
   togglePMTask: (pmId: string, taskId: string) => void
-  // Actions — Spare Parts
+  // Actions — Spare Parts (full CRUD)
   adjustStock: (id: string, delta: number) => void
+  createSparePart: (sp: Omit<SparePart, 'id' | 'history'>) => string
+  updateSparePart: (id: string, patch: Partial<Omit<SparePart, 'id' | 'history'>>) => void
+  deleteSparePart: (id: string) => void
+  // Actions — Suppliers (full CRUD)
+  createSupplier: (s: Omit<Supplier, 'id'>) => string
+  updateSupplier: (id: string, patch: Partial<Omit<Supplier, 'id'>>) => void
+  deleteSupplier: (id: string) => void
+  // Actions — PM (edit + delete)
+  updatePMTask: (id: string, patch: Partial<PMTask>) => void
+  deletePMTask: (id: string) => void
+  // Actions — Users (create + delete)
+  createUser: (u: Omit<User, 'id'>) => string
+  deleteUser: (id: string) => void
+  // Actions — Work Orders (delete)
+  deleteWorkOrder: (id: string) => void
   // Actions — Log
   createLogEntry: (entry: Omit<LogEntry, 'id' | 'createdAt'>) => void
+  deleteLogEntry: (id: string) => void
   // Actions — Settings / UI
   setActiveUser: (id: string) => void
   updateUser: (id: string, patch: Partial<User>) => void
@@ -458,6 +474,56 @@ export const useStore = create<AppState>((set, get) => ({
     api?.sp_adjustStock(id, delta, today, note).catch(console.error)
   },
 
+  createSparePart: (sp) => {
+    const id = nextId('sp', get().spareParts.map(s => s.id))
+    set(s => ({ spareParts: [...s.spareParts, { ...sp, id, history: [] }] }))
+    return id
+  },
+
+  updateSparePart: (id, patch) => {
+    set(s => ({ spareParts: s.spareParts.map(p => p.id === id ? { ...p, ...patch } : p) }))
+  },
+
+  deleteSparePart: (id) => {
+    set(s => ({ spareParts: s.spareParts.filter(p => p.id !== id) }))
+  },
+
+  createSupplier: (sup) => {
+    const id = nextId('sup', get().suppliers.map(s => s.id))
+    set(s => ({ suppliers: [...s.suppliers, { ...sup, id }] }))
+    return id
+  },
+
+  updateSupplier: (id, patch) => {
+    set(s => ({ suppliers: s.suppliers.map(sup => sup.id === id ? { ...sup, ...patch } : sup) }))
+  },
+
+  deleteSupplier: (id) => {
+    set(s => ({ suppliers: s.suppliers.filter(sup => sup.id !== id) }))
+  },
+
+  updatePMTask: (id, patch) => {
+    set(s => ({ pmTasks: s.pmTasks.map(p => p.id === id ? { ...p, ...patch } : p) }))
+  },
+
+  deletePMTask: (id) => {
+    set(s => ({ pmTasks: s.pmTasks.filter(p => p.id !== id) }))
+  },
+
+  createUser: (u) => {
+    const id = nextId('u', get().users.map(usr => usr.id))
+    set(s => ({ users: [...s.users, { ...u, id }] }))
+    return id
+  },
+
+  deleteUser: (id) => {
+    set(s => ({ users: s.users.filter(u => u.id !== id) }))
+  },
+
+  deleteWorkOrder: (id) => {
+    set(s => ({ workOrders: s.workOrders.filter(w => w.id !== id) }))
+  },
+
   createLogEntry: (entry) => {
     const id = nextId('log', get().logEntries.map(l => l.id))
     set(s => ({
@@ -466,6 +532,10 @@ export const useStore = create<AppState>((set, get) => ({
         ...s.logEntries,
       ],
     }))
+  },
+
+  deleteLogEntry: (id) => {
+    set(s => ({ logEntries: s.logEntries.filter(l => l.id !== id) }))
   },
 
   setActiveUser: (id) => set({ activeUserId: id }),

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { format, parseISO, isValid } from 'date-fns'
 import { da } from 'date-fns/locale'
-import { Plus, X, ShieldCheck, AlertTriangle, CheckCircle2, Clock, XCircle } from 'lucide-react'
+import { Plus, X, ShieldCheck, AlertTriangle, CheckCircle2, Clock, XCircle, Trash2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
 import PharmaSignoffModal from '../components/PharmaSignoffModal'
@@ -80,13 +80,15 @@ function StatusStepper({ status }: { status: ChangeStatus }) {
 }
 
 // ── Detail panel ────────────────────────────────────────────────────────────
-function DetailPanel({ record, onClose, onUpdate, pharmaMode }: {
+function DetailPanel({ record, onClose, onUpdate, onDelete, pharmaMode }: {
   record: ChangeRecord
   onClose: () => void
   onUpdate: (id: string, patch: Partial<ChangeRecord>) => void
+  onDelete: (id: string) => void
   pharmaMode: boolean
 }) {
   const { auth, users } = useStore()
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const activeUser = auth ? users.find(u => u.id === auth.userId) : null
   const [signoffAction, setSignoffAction] = useState<'approve' | 'implement' | 'verify' | 'reject' | null>(null)
 
@@ -119,9 +121,22 @@ function DetailPanel({ record, onClose, onUpdate, pharmaMode }: {
             </div>
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white leading-snug max-w-xs">{record.title}</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800">
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            {confirmDelete ? (
+              <div className="flex items-center gap-1 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-2 py-1">
+                <span className="text-xs text-red-600 dark:text-red-400 mr-1">Slet?</span>
+                <button onClick={() => { onDelete(record.id); onClose() }} className="rounded bg-red-600 text-white hover:bg-red-700 text-xs px-1.5 py-0.5">Ja</button>
+                <button onClick={() => setConfirmDelete(false)} className="rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs px-1.5 py-0.5">Nej</button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmDelete(true)} title="Slet" className="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+                <Trash2 size={15} />
+              </button>
+            )}
+            <button onClick={onClose} className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800">
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
@@ -274,6 +289,7 @@ export default function Aendringsstyring() {
   const records = useStore(s => s.changeRecords)
   const updateChange = useStore(s => s.updateChange)
   const createChange = useStore(s => s.createChange)
+  const deleteChange = useStore(s => s.deleteChange)
   const [filterStatus, setFilterStatus] = useState<ChangeStatus | null>(null)
   const [selected, setSelected] = useState<ChangeRecord | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -425,6 +441,7 @@ export default function Aendringsstyring() {
             record={records.find(r => r.id === selected.id)!}
             onClose={() => setSelected(null)}
             onUpdate={update}
+            onDelete={id => { deleteChange(id); setSelected(null) }}
             pharmaMode={pharmaMode}
           />
         </>

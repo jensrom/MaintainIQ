@@ -112,6 +112,9 @@ interface AppState {
   createDeviation: (d: Omit<DeviationRecord, 'id'>) => string
   createCapa: (c: Omit<CAPARecord, 'id'>) => string
   createChange: (c: Omit<ChangeRecord, 'id'>) => string
+  deleteDeviation: (id: string) => void
+  deleteCapa: (id: string) => void
+  deleteChange: (id: string) => void
   // Electron DB
   dbReady: boolean
   dbError: string | null
@@ -625,6 +628,9 @@ export const useStore = create<AppState>((set, get) => ({
     api?.gmp_createChange(rec).catch(console.error)
     return id
   },
+  deleteDeviation: (id) => set(s => ({ deviations: s.deviations.filter(d => d.id !== id) })),
+  deleteCapa: (id) => set(s => ({ capaRecords: s.capaRecords.filter(c => c.id !== id) })),
+  deleteChange: (id) => set(s => ({ changeRecords: s.changeRecords.filter(c => c.id !== id) })),
 
   login: (email, password) => {
     const user = get().users.find(

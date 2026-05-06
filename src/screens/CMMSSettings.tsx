@@ -44,34 +44,75 @@ function SBadge({ color, icon, name }: { color: string; icon?: string; name: str
 // ─── Tab: System ─────────────────────────────────────────────────────────────
 
 function TabSystem() {
+  const { companySettings, updateCompanySettings, users, assets } = useStore()
+  const [form, setForm] = useState({ ...companySettings })
+  const [saved, setSaved] = useState(false)
+  const fi = (key: keyof typeof form, v: string | boolean) => setForm(f => ({ ...f, [key]: v }))
+  const inp = 'w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500'
+
+  function save() {
+    updateCompanySettings(form)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
   return (
     <div className="max-w-xl space-y-4">
       <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
         <div className="px-5 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Site information</h3>
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Virksomhedsoplysninger</h3>
         </div>
         <div className="p-5 grid grid-cols-2 gap-4">
-          {[
-            { label: 'Site navn', value: 'Horsens Produktionssite' },
-            { label: 'Site kode', value: 'HOR-SITE' },
-            { label: 'Adresse', value: 'Skolebakken 20' },
-            { label: 'By', value: 'Horsens' },
-            { label: 'Postnummer', value: 'DK-8700' },
-            { label: 'Land', value: 'Danmark' },
-            { label: 'Tidszone', value: 'Europe/Copenhagen (CET)' },
-            { label: 'Standard valuta', value: 'DKK — Dansk krone' },
-          ].map(f => (
-            <div key={f.label}>
-              <label className="block text-[11px] font-medium text-gray-400 mb-1">{f.label}</label>
-              <input
-                defaultValue={f.value}
-                className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          ))}
+          <div className="col-span-2">
+            <label className="block text-[11px] font-medium text-gray-400 mb-1">Virksomhedsnavn</label>
+            <input className={inp} value={form.name} onChange={e => fi('name', e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-400 mb-1">Adresse</label>
+            <input className={inp} value={form.address ?? ''} onChange={e => fi('address', e.target.value)} placeholder="Vejnavn og nr." />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-400 mb-1">By</label>
+            <input className={inp} value={form.city ?? ''} onChange={e => fi('city', e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-400 mb-1">Postnummer</label>
+            <input className={inp} value={form.zip ?? ''} onChange={e => fi('zip', e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-400 mb-1">Land</label>
+            <input className={inp} value={form.country ?? ''} onChange={e => fi('country', e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-400 mb-1">Telefon</label>
+            <input className={inp} value={form.phone ?? ''} onChange={e => fi('phone', e.target.value)} placeholder="+45 00 00 00 00" />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-400 mb-1">E-mail</label>
+            <input type="email" className={inp} value={form.email ?? ''} onChange={e => fi('email', e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-400 mb-1">CVR-nummer</label>
+            <input className={inp} value={form.vatNumber ?? ''} onChange={e => fi('vatNumber', e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-400 mb-1">Website</label>
+            <input className={inp} value={form.website ?? ''} onChange={e => fi('website', e.target.value)} placeholder="https://..." />
+          </div>
         </div>
-        <div className="px-5 pb-4 flex justify-end">
-          <button className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+        <div className="px-5 pb-2 space-y-1">
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input type="checkbox" checked={form.logoOnPrint} onChange={e => fi('logoOnPrint', e.target.checked)} className="rounded" />
+            Vis logo ved udskrivning
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input type="checkbox" checked={form.logoOnQR} onChange={e => fi('logoOnQR', e.target.checked)} className="rounded" />
+            Vis logo på QR-koder
+          </label>
+        </div>
+        <div className="px-5 pb-4 pt-3 flex items-center justify-end gap-3">
+          {saved && <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ Gemt</span>}
+          <button onClick={save} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
             <Save size={14} /> Gem ændringer
           </button>
         </div>
@@ -84,8 +125,8 @@ function TabSystem() {
         <div className="p-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
           <div className="flex justify-between"><span>Version</span><span className="font-mono text-gray-800 dark:text-gray-200">MaintainIQ v1.0</span></div>
           <div className="flex justify-between"><span>Licens</span><span className="text-gray-800 dark:text-gray-200">Enterprise</span></div>
-          <div className="flex justify-between"><span>Enheder i systemet</span><span className="text-gray-800 dark:text-gray-200">23</span></div>
-          <div className="flex justify-between"><span>Aktive brugere</span><span className="text-gray-800 dark:text-gray-200">5</span></div>
+          <div className="flex justify-between"><span>Aktiver i systemet</span><span className="text-gray-800 dark:text-gray-200">{assets.length}</span></div>
+          <div className="flex justify-between"><span>Aktive brugere</span><span className="text-gray-800 dark:text-gray-200">{users.filter(u => u.isActive !== false).length}</span></div>
         </div>
       </section>
     </div>

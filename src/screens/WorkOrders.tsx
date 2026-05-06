@@ -4,6 +4,7 @@ import { da } from 'date-fns/locale'
 import {
   Plus, Search, X, Settings2, AlertTriangle, ChevronUp, ChevronDown,
   Check, Clock, MessageSquare, CheckSquare, Wrench, ShieldCheck, Printer,
+  Pencil, Trash2,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
@@ -141,11 +142,12 @@ function openWOPrint(
 
 // ---- Detail Panel Tabs ----
 function WOPanel({ wo, onClose }: { wo: WorkOrder; onClose: () => void }) {
-  const [tab, setTab] = useState<'detaljer' | 'opgaver' | 'timer' | 'dele'>('detaljer')
-  const { users, assets, spareParts, updateWorkOrder, addComment, logTime, toggleTask, addSparePart } = useStore()
+  const [tab, setTab] = useState<'detaljer' | 'opgaver' | 'timer' | 'dele' | 'rediger'>('detaljer')
+  const { users, assets, spareParts, updateWorkOrder, addComment, logTime, toggleTask, addSparePart, deleteWorkOrder } = useStore()
   const pharmaMode = useStore(s => s.settings.pharmaMode)
   const cs = useStore(s => s.companySettings)
   const [showPharmaSignoff, setShowPharmaSignoff] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const today = new Date().toISOString().split('T')[0]
 
   const [comment, setComment] = useState('')
@@ -154,6 +156,23 @@ function WOPanel({ wo, onClose }: { wo: WorkOrder; onClose: () => void }) {
   const [timeDate, setTimeDate] = useState(today)
   const [partId, setPartId] = useState('')
   const [partQty, setPartQty] = useState('1')
+
+  const [editForm, setEditForm] = useState({
+    title: wo.title, description: wo.description,
+    assetId: wo.assetId, assigneeId: wo.assigneeId ?? '',
+    dueDate: wo.dueDate, priority: wo.priority,
+    category: wo.category, isPharma: wo.isPharma,
+  })
+
+  function saveEdit() {
+    updateWorkOrder(wo.id, { ...editForm, assigneeId: editForm.assigneeId || null })
+    setTab('detaljer')
+  }
+
+  function handleDelete() {
+    deleteWorkOrder(wo.id)
+    onClose()
+  }
 
   const user = (id: string | null) => users.find(u => u.id === id)
   const asset = assets.find(a => a.id === wo.assetId)
@@ -191,6 +210,18 @@ function WOPanel({ wo, onClose }: { wo: WorkOrder; onClose: () => void }) {
           >
             <Printer size={15} />
           </button>
+          {showDeleteConfirm ? (
+            <div className="flex items-center gap-1 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-2 py-1">
+              <span className="text-xs text-red-600 dark:text-red-400 mr-1">Slet?</span>
+              <button onClick={handleDelete} className="p-0.5 rounded bg-red-600 text-white hover:bg-red-700"><Check size={11} /></button>
+              <button onClick={() => setShowDeleteConfirm(false)} className="p-0.5 rounded text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"><X size={11} /></button>
+            </div>
+          ) : (
+            <button onClick={() => setShowDeleteConfirm(true)} title="Slet arbejdsordre"
+              className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+              <Trash2 size={15} />
+            </button>
+          )}
           <button onClick={onClose} className="p-1.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800">
             <X size={16} />
           </button>
@@ -204,6 +235,7 @@ function WOPanel({ wo, onClose }: { wo: WorkOrder; onClose: () => void }) {
           { id: 'opgaver', label: 'Opgaver', icon: <CheckSquare size={13} /> },
           { id: 'timer', label: 'Timer', icon: <Clock size={13} /> },
           { id: 'dele', label: 'Reservedele', icon: <Wrench size={13} /> },
+          { id: 'rediger', label: 'Redigér', icon: <Pencil size={13} /> },
         ].map(t => (
           <button
             key={t.id}
@@ -427,6 +459,66 @@ function WOPanel({ wo, onClose }: { wo: WorkOrder; onClose: () => void }) {
             </div>
           </>
         )}
+
+        {/* REDIGÉR TAB */}
+        {tab === 'rediger' && (() => {
+          const ei = (key: keyof typeof editForm, v: string | boolean) => setEditForm(f => ({ ...f, [key]: v }))
+          const sti = 'w-full text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2'
+          return (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Titel *</label>
+                <input className={sti} value={editForm.title} onChange={e => ei('title', e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Aktiv</label>
+                <select className={sti} value={editForm.assetId} onChange={e => ei('assetId', e.target.value)}>
+                  <option value="">Vælg aktiv...</option>
+                  {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Prioritet</label>
+                  <select className={sti} value={editForm.priority} onChange={e => ei('priority', e.target.value)}>
+                    {(['Kritisk', 'Høj', 'Normal', 'Lav'] as Priority[]).map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Kategori</label>
+                  <select className={sti} value={editForm.category} onChange={e => ei('category', e.target.value)}>
+                    {(['Forebyggende', 'Afhjælpende', 'Inspektion', 'Projekt', 'Rengøring'] as WorkOrderCategory[]).map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Forfaldsdato</label>
+                  <input type="date" className={sti} value={editForm.dueDate} onChange={e => ei('dueDate', e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Ansvarlig</label>
+                  <select className={sti} value={editForm.assigneeId} onChange={e => ei('assigneeId', e.target.value)}>
+                    <option value="">Ikke tildelt</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Beskrivelse</label>
+                <textarea className={sti} rows={4} value={editForm.description} onChange={e => ei('description', e.target.value)} />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                <input type="checkbox" checked={editForm.isPharma} onChange={e => ei('isPharma', e.target.checked)} className="rounded" />
+                🧪 GMP/Pharma-relateret
+              </label>
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setTab('detaljer')} className="flex-1 py-2 border border-gray-200 dark:border-gray-700 text-sm rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">Annuller</button>
+                <button onClick={saveEdit} className="flex-1 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Gem ændringer</button>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* RESERVEDELE TAB */}
         {tab === 'dele' && (

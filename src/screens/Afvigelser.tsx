@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { format, parseISO, isValid } from 'date-fns'
 import { da } from 'date-fns/locale'
-import { Plus, X, ShieldCheck, AlertTriangle, ChevronRight } from 'lucide-react'
+import { Plus, X, ShieldCheck, AlertTriangle, ChevronRight, Trash2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
 import PharmaSignoffModal from '../components/PharmaSignoffModal'
@@ -37,14 +37,16 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 
 // ── Detail panel ────────────────────────────────────────────────────────────
 
-function DetailPanel({ record, onClose, onUpdate, pharmaMode }: {
+function DetailPanel({ record, onClose, onUpdate, onDelete, pharmaMode }: {
   record: DeviationRecord
   onClose: () => void
   onUpdate: (id: string, patch: Partial<DeviationRecord>) => void
+  onDelete: (id: string) => void
   pharmaMode: boolean
 }) {
   const [showSignoff, setShowSignoff] = useState(false)
   const [rootCause, setRootCause] = useState(record.rootCause ?? '')
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   function handleClose() {
     if (pharmaMode) { setShowSignoff(true); return }
@@ -64,9 +66,22 @@ function DetailPanel({ record, onClose, onUpdate, pharmaMode }: {
             </div>
             <h2 className="text-sm font-semibold text-slate-900 dark:text-white leading-snug max-w-xs">{record.title}</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800">
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            {confirmDelete ? (
+              <div className="flex items-center gap-1 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-2 py-1">
+                <span className="text-xs text-red-600 dark:text-red-400 mr-1">Slet?</span>
+                <button onClick={() => { onDelete(record.id); onClose() }} className="p-0.5 rounded bg-red-600 text-white hover:bg-red-700 text-xs px-1.5 py-0.5">Ja</button>
+                <button onClick={() => setConfirmDelete(false)} className="p-0.5 rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs px-1.5 py-0.5">Nej</button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmDelete(true)} title="Slet" className="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+                <Trash2 size={15} />
+              </button>
+            )}
+            <button onClick={onClose} className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800">
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
@@ -168,6 +183,7 @@ export default function Afvigelser() {
   const records = useStore(s => s.deviations)
   const updateDeviation = useStore(s => s.updateDeviation)
   const createDeviation = useStore(s => s.createDeviation)
+  const deleteDeviation = useStore(s => s.deleteDeviation)
   const [filterStatus, setFilterStatus] = useState<DevStatus | null>(null)
   const [selected, setSelected] = useState<DeviationRecord | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -315,6 +331,7 @@ export default function Afvigelser() {
             record={records.find(r => r.id === selected.id)!}
             onClose={() => setSelected(null)}
             onUpdate={update}
+            onDelete={id => { deleteDeviation(id); setSelected(null) }}
             pharmaMode={pharmaMode}
           />
         </>

@@ -1,6 +1,6 @@
 import type {
   User, Asset, AssetCategory, LookupTable, WorkOrder, SparePart, Supplier, PMTask, LogEntry,
-  UserGroup, CompanySettings, Permission
+  UserGroup, CompanySettings, Permission, CalibrationRecord,
 } from '../types'
 
 export const LOOKUP_TABLES: LookupTable[] = [
@@ -1323,4 +1323,15 @@ export const INITIAL_CHANGES: ChangeRecord[] = [
   { id: 'CR-006', title: 'Renovering af laminar flow-kabinet LAB-LFC-01', type: 'Facility', priority: 'Høj', status: 'Godkendt', requestedBy: 'Peter Madsen', requestedAt: '2025-03-25', targetDate: '2025-04-30', description: 'LAB-LFC-01 renoveres med ny motor og HEPA-filter.', reason: 'Kabinettet viser tegn på mekanisk slid.', impactAssessment: 'Lab D lukkes i 3 arbejdsdage.', affectedAssets: ['LAB-LFC-01'], affectedSOPs: ['SOP-VAL-009', 'SOP-LAB-001'], approvedBy: 'Kirsten Sørensen', approvedAt: '2025-03-30' },
   { id: 'CR-007', title: 'Ændring af blandingstider for batch type B', type: 'Procedure', priority: 'Kritisk', status: 'Lukket', requestedBy: 'Mette Hansen', requestedAt: '2025-01-08', targetDate: '2025-02-01', description: 'Blandingstiden for batch type B øges fra 45 til 60 minutter.', reason: 'Intern validering viser forbedret homogenitet ved 60 minutters blanding.', impactAssessment: 'Kapacitetsreduktion på ca. 10% per batch.', affectedAssets: ['MIX-001'], affectedSOPs: ['SOP-PRD-005'], approvedBy: 'Peter Madsen', approvedAt: '2025-01-18', implementedAt: '2025-01-25', verifiedAt: '2025-02-03' },
   { id: 'CR-008', title: 'Ansættelse af ekstra kvalitetsteknikers adgang', type: 'Personale', priority: 'Lav', status: 'Udkast', requestedBy: 'Kirsten Sørensen', requestedAt: '2025-04-01', targetDate: '2025-05-01', description: 'Onboarding-procedure for ny kvalitetstekniker opdateres med CMMS-adgangsrettigheder.', reason: 'Ny medarbejder starter 1. maj.', impactAssessment: 'Ingen produktionspåvirkning.', affectedAssets: [], affectedSOPs: ['SOP-ADM-002'] },
+]
+
+export const INITIAL_CALIBRATIONS: CalibrationRecord[] = [
+  { id: 'cal-1', assetId: 'a6', assetName: 'Trykmåler TRY-001', assetCode: 'TRY-001', instrumentType: 'Trykmåler', serialNumber: 'SN-TM-2019-001', lastCalibrated: '2025-10-15', nextDue: '2026-04-15', status: 'Forfaldent', certificate: 'CAL-2025-047', range: '0–16 bar ±0.5%', calibratedBy: 'Søren Nielsen', location: 'Produktionshallen A' },
+  { id: 'cal-2', assetId: 'a8', assetName: 'Autoklav AUT-001', assetCode: 'AUT-001', instrumentType: 'Trykkar', serialNumber: 'SN-AUT-2018-001', lastCalibrated: '2026-01-20', nextDue: '2026-07-20', status: 'Kalibreret', certificate: 'CAL-2026-003', range: '0–6 bar ±0.2%', calibratedBy: 'Søren Nielsen', location: 'Produktionshallen A' },
+  { id: 'cal-3', assetId: 'a9', assetName: 'Autoklav AUT-002', assetCode: 'AUT-002', instrumentType: 'Trykkar', serialNumber: 'SN-AUT-2019-002', lastCalibrated: '2026-02-10', nextDue: '2026-08-10', status: 'Kalibreret', certificate: 'CAL-2026-011', range: '0–6 bar ±0.2%', calibratedBy: 'Søren Nielsen', location: 'Produktionshallen A' },
+  { id: 'cal-4', assetId: 'a12', assetName: 'Termometer TMP-001', assetCode: 'TMP-001', instrumentType: 'Termometer', serialNumber: 'SN-TMP-2020-001', lastCalibrated: '2025-07-01', nextDue: '2026-01-01', status: 'Forfaldent', certificate: 'CAL-2025-023', range: '-20–150°C ±0.5°C', calibratedBy: 'Helle Jensen', location: 'Laboratorium D' },
+  { id: 'cal-5', assetId: 'a15', assetName: 'Analysebalance BAL-001', assetCode: 'BAL-001', instrumentType: 'Vægt', serialNumber: 'SN-BAL-2021-001', lastCalibrated: '2026-03-01', nextDue: '2026-09-01', status: 'Kalibreret', certificate: 'CAL-2026-019', range: '0–200g ±0.0001g', calibratedBy: 'Helle Jensen', location: 'Laboratorium D' },
+  { id: 'cal-6', assetId: 'a10', assetName: 'Flowmåler FLW-001', assetCode: 'FLW-001', instrumentType: 'Flowmåler', serialNumber: 'SN-FLW-2019-003', lastCalibrated: '2026-01-05', nextDue: '2026-07-05', status: 'Kommende', certificate: 'CAL-2026-001', range: '0–100 L/min ±1%', calibratedBy: 'Søren Nielsen', location: 'Forsyning C' },
+  { id: 'cal-7', assetId: 'a14', assetName: 'pH-måler PHM-001', assetCode: 'PHM-001', instrumentType: 'pH-måler', serialNumber: 'SN-PHM-2022-001', lastCalibrated: '2026-02-28', nextDue: '2026-05-28', status: 'Kommende', certificate: 'CAL-2026-017', range: '0–14 pH ±0.01', calibratedBy: 'Helle Jensen', location: 'Laboratorium D' },
+  { id: 'cal-8', assetId: 'a16', assetName: 'Tachometer TAC-001', assetCode: 'TAC-001', instrumentType: 'Tachometer', serialNumber: 'SN-TAC-2020-002', lastCalibrated: '2025-06-10', nextDue: '2025-12-10', status: 'Ude af drift', certificate: 'CAL-2025-018', range: '0–10000 rpm ±0.1%', calibratedBy: '—', location: 'Produktionshallen A' },
 ]

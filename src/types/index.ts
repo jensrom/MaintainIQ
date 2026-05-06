@@ -397,6 +397,26 @@ export interface AuthSession {
   mfaVerified: boolean
 }
 
+// ─── Calibration ──────────────────────────────────────────────────────────────
+
+export type CalibrationStatus = 'Kalibreret' | 'Forfaldent' | 'Kommende' | 'Ude af drift'
+
+export interface CalibrationRecord {
+  id: string
+  assetId: string
+  assetName: string
+  assetCode: string
+  instrumentType: string
+  serialNumber: string
+  lastCalibrated: string   // ISO date
+  nextDue: string          // ISO date
+  status: CalibrationStatus
+  certificate: string
+  range: string
+  calibratedBy: string
+  location: string
+}
+
 // ─── Company Settings ─────────────────────────────────────────────────────────
 
 export interface CompanySettings {

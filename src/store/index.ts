@@ -5,13 +5,13 @@ import type {
   SparePart, PMTask, LogEntry, User, Asset, AssetCategory, LookupTable, LookupItem, Supplier,
   AppNotification, Settings, WidgetConfig, AuditEntry, AuditAction,
   UserGroup, AuthSession, CompanySettings, Permission,
-  DeviationRecord, CAPARecord, ChangeRecord,
+  DeviationRecord, CAPARecord, ChangeRecord, CalibrationRecord,
 } from '../types'
 import {
   USERS, ASSETS, ASSET_CATEGORIES, LOOKUP_TABLES,
   WORK_ORDERS, SPARE_PARTS, SUPPLIERS, PM_TASKS, LOG_ENTRIES,
   USER_GROUPS, COMPANY_SETTINGS,
-  INITIAL_DEVIATIONS, INITIAL_CAPA, INITIAL_CHANGES,
+  INITIAL_DEVIATIONS, INITIAL_CAPA, INITIAL_CHANGES, INITIAL_CALIBRATIONS,
 } from '../data/mockData'
 
 const api = window.electronAPI
@@ -115,6 +115,12 @@ interface AppState {
   deleteDeviation: (id: string) => void
   deleteCapa: (id: string) => void
   deleteChange: (id: string) => void
+  // Calibration
+  calibrations: CalibrationRecord[]
+  createCalibration: (cal: Omit<CalibrationRecord, 'id'>) => string
+  updateCalibration: (id: string, patch: Partial<CalibrationRecord>) => void
+  deleteCalibration: (id: string) => void
+  markCalibrationDone: (id: string) => void
   // Electron DB
   dbReady: boolean
   dbError: string | null
@@ -155,6 +161,7 @@ export const useStore = create<AppState>((set, get) => ({
   deviations: INITIAL_DEVIATIONS,
   capaRecords: INITIAL_CAPA,
   changeRecords: INITIAL_CHANGES,
+  calibrations: INITIAL_CALIBRATIONS,
   dbReady: false,
   dbError: null,
   activeUserId: 'u4',
@@ -631,6 +638,31 @@ export const useStore = create<AppState>((set, get) => ({
   deleteDeviation: (id) => set(s => ({ deviations: s.deviations.filter(d => d.id !== id) })),
   deleteCapa: (id) => set(s => ({ capaRecords: s.capaRecords.filter(c => c.id !== id) })),
   deleteChange: (id) => set(s => ({ changeRecords: s.changeRecords.filter(c => c.id !== id) })),
+
+  // ── Calibration actions ──────────────────────────────────────────────────────
+  createCalibration: (cal) => {
+    const id = nextId('cal-', get().calibrations.map(c => c.id))
+    set(s => ({ calibrations: [{ ...cal, id }, ...s.calibrations] }))
+    return id
+  },
+  updateCalibration: (id, patch) => {
+    set(s => ({ calibrations: s.calibrations.map(c => c.id === id ? { ...c, ...patch } : c) }))
+  },
+  deleteCalibration: (id) => {
+    set(s => ({ calibrations: s.calibrations.filter(c => c.id !== id) }))
+  },
+  markCalibrationDone: (id) => {
+    const today = todayStr()
+    const nextDue = new Date()
+    nextDue.setMonth(nextDue.getMonth() + 6)
+    set(s => ({
+      calibrations: s.calibrations.map(c =>
+        c.id === id
+          ? { ...c, status: 'Kalibreret', lastCalibrated: today, nextDue: nextDue.toISOString().split('T')[0] }
+          : c
+      ),
+    }))
+  },
 
   login: (email, password) => {
     const user = get().users.find(

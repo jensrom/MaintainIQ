@@ -199,6 +199,7 @@ export const useStore = create<AppState>((set, get) => ({
     { id: 'pm_compliance', displayType: 'percent' },
     { id: 'low_stock', displayType: 'count' },
     { id: 'requests', displayType: 'count' },
+    { id: 'pm_overdue', displayType: 'count' },
   ],
 
   createAsset: (asset) => {

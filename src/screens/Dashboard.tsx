@@ -4,12 +4,13 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import {
-  ClipboardList, AlertTriangle, Clock, Package, CalendarCheck, TrendingUp, Activity,
+  ClipboardList, AlertTriangle, Clock, Package, CalendarCheck, TrendingUp, Activity, Settings2,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
 import { format, parseISO, isValid } from 'date-fns'
 import { da } from 'date-fns/locale'
+import type { WidgetConfig } from '../types'
 
 // ─── Color maps ───────────────────────────────────────────────────────────────
 
@@ -89,52 +90,120 @@ const PERIOD_LABELS: Record<PeriodKey, string> = {
   aar: 'År',
 }
 
-// ─── KPI Stat Card ────────────────────────────────────────────────────────────
+// ─── Widget KPI Card (store-backed, cycling display types) ────────────────────
 
-interface StatCardProps {
+const DISPLAY_CYCLE: WidgetConfig['displayType'][] = ['count', 'percent', 'pie', 'bar']
+
+interface ChartEntry { name: string; value: number; color: string }
+
+interface WidgetCardProps {
+  widgetId: string
   label: string
-  value: number | string
+  value: number
+  total?: number
   accentColor: string
   icon: React.ReactNode
   onClick?: () => void
   alert?: boolean
+  pieData?: ChartEntry[]
+  barData?: ChartEntry[]
 }
 
-function StatCard({ label, value, accentColor, icon, onClick, alert }: StatCardProps) {
+function WidgetCard({ widgetId, label, value, total, accentColor, icon, onClick, alert, pieData, barData }: WidgetCardProps) {
+  const { widgetConfigs, updateWidgetConfig } = useStore()
+  const cfg = widgetConfigs.find(w => w.id === widgetId)
+  const displayType = cfg?.displayType ?? 'count'
+
+  const hasPie = (pieData?.length ?? 0) > 0
+  const hasBar = (barData?.length ?? 0) > 0
+
+  function cycle(e: React.MouseEvent) {
+    e.stopPropagation()
+    const available = DISPLAY_CYCLE.filter(t =>
+      t === 'count' ||
+      (t === 'percent' && total !== undefined) ||
+      (t === 'pie' && hasPie) ||
+      (t === 'bar' && hasBar)
+    )
+    const idx = available.indexOf(displayType)
+    updateWidgetConfig(widgetId, available[(idx + 1) % available.length])
+  }
+
+  const pct = total != null && total > 0 ? Math.round((value / total) * 100) : 0
+
   return (
     <div
       onClick={onClick}
       className={clsx(
         'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg',
-        'flex flex-col gap-1 px-4 py-3 relative overflow-hidden',
+        'flex flex-col gap-1 px-4 py-3 relative overflow-hidden group min-h-[76px]',
         onClick && 'cursor-pointer hover:shadow-md transition-shadow',
       )}
       style={{ borderTopWidth: 3, borderTopColor: accentColor }}
     >
-      {/* Icon top-right */}
-      <span
-        className="absolute top-3 right-3 opacity-15"
-        style={{ color: accentColor }}
+      {/* Cycle button */}
+      <button
+        onClick={cycle}
+        className="absolute top-2 right-2 p-0.5 rounded text-slate-300 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+        title={`Visning: ${displayType}`}
       >
-        {icon}
-      </span>
+        <Settings2 size={11} />
+      </button>
 
-      {/* Value */}
-      <span
-        className={clsx(
-          'text-2xl font-semibold leading-none',
-          alert && typeof value === 'number' && value > 0
-            ? 'text-red-600 dark:text-red-400'
-            : 'text-slate-900 dark:text-slate-100'
-        )}
-      >
-        {value}
-      </span>
+      {/* Background icon */}
+      <span className="absolute top-3 right-7 opacity-10" style={{ color: accentColor }}>{icon}</span>
 
-      {/* Label */}
-      <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-        {label}
-      </span>
+      {/* count */}
+      {(displayType === 'count' || (!hasPie && !hasBar && displayType !== 'percent')) && (
+        <>
+          <span className={clsx(
+            'text-2xl font-semibold leading-none',
+            alert && value > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'
+          )}>{value}</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">{label}</span>
+        </>
+      )}
+
+      {/* percent */}
+      {displayType === 'percent' && (
+        <>
+          <span className="text-2xl font-semibold leading-none text-slate-900 dark:text-slate-100">{pct}%</span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">{label}</span>
+          <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded mt-0.5">
+            <div className="h-1 rounded transition-all" style={{ width: `${pct}%`, backgroundColor: accentColor }} />
+          </div>
+        </>
+      )}
+
+      {/* pie */}
+      {displayType === 'pie' && hasPie && (
+        <div className="flex items-center gap-2 -mx-1 -my-0.5">
+          <PieChart width={56} height={56}>
+            <Pie data={pieData} cx={24} cy={24} innerRadius={12} outerRadius={24} paddingAngle={2} dataKey="value">
+              {pieData!.map((e, i) => <Cell key={i} fill={e.color} />)}
+            </Pie>
+          </PieChart>
+          <div>
+            <span className={clsx('text-xl font-semibold leading-none', alert && value > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100')}>{value}</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight block">{label}</span>
+          </div>
+        </div>
+      )}
+
+      {/* bar */}
+      {displayType === 'bar' && hasBar && (
+        <div className="-mx-2 -mt-0.5">
+          <div className="px-2">
+            <span className={clsx('text-xl font-semibold leading-none', alert && value > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100')}>{value}</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight ml-1">{label}</span>
+          </div>
+          <BarChart width={130} height={34} data={barData} margin={{ top: 2, right: 4, left: -28, bottom: 0 }}>
+            <Bar dataKey="value" radius={[2, 2, 0, 0]} maxBarSize={14}>
+              {barData!.map((e, i) => <Cell key={i} fill={e.color} />)}
+            </Bar>
+          </BarChart>
+        </div>
+      )}
     </div>
   )
 }
@@ -177,6 +246,7 @@ export default function Dashboard() {
   const spareParts = useStore(s => s.spareParts)
   const pmTasks = useStore(s => s.pmTasks)
   const assets = useStore(s => s.assets)
+  // widget config not destructured here — WidgetCard pulls it internally
 
   const [period, setPeriod] = useState<PeriodKey>('maaned')
 
@@ -212,6 +282,48 @@ export default function Dashboard() {
 
     return { active, overdue, dueToday, requests, overduePMs, lowStockParts, pmCompliance }
   }, [workOrders, spareParts, pmTasks, todayStr])
+
+  // ── Widget mini chart data ─────────────────────────────────────────────────
+
+  const widgetChartData = useMemo(() => {
+    const activeWOs = workOrders.filter(wo => !['Afsluttet', 'Annulleret'].includes(wo.status))
+    const totalWOs = workOrders.length
+
+    // open widget: active WOs by status (pie) + by priority (bar)
+    const statusCounts: Record<string, number> = {}
+    activeWOs.forEach(wo => { statusCounts[wo.status] = (statusCounts[wo.status] ?? 0) + 1 })
+    const openPie: ChartEntry[] = Object.entries(statusCounts).map(([name, value]) => ({ name, value, color: STATUS_COLORS[name] ?? '#9ca3af' }))
+    const priMap: Record<string, string> = { 'Kritisk': '#ef4444', 'Høj': '#f97316', 'Normal': '#3b82f6', 'Lav': '#9ca3af' }
+    const priCounts: Record<string, number> = { 'Kritisk': 0, 'Høj': 0, 'Normal': 0, 'Lav': 0 }
+    activeWOs.forEach(wo => { if (wo.priority in priCounts) priCounts[wo.priority]++ })
+    const openBar: ChartEntry[] = Object.entries(priCounts).map(([name, value]) => ({ name, value, color: priMap[name] ?? '#9ca3af' }))
+
+    // overdue widget: overdue by priority (pie)
+    const overduePriCounts: Record<string, number> = { 'Kritisk': 0, 'Høj': 0, 'Normal': 0, 'Lav': 0 }
+    workOrders.filter(wo => !['Afsluttet', 'Annulleret'].includes(wo.status) && wo.dueDate < new Date().toISOString().split('T')[0])
+      .forEach(wo => { if (wo.priority in overduePriCounts) overduePriCounts[wo.priority]++ })
+    const overduePie: ChartEntry[] = Object.entries(overduePriCounts).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value, color: priMap[name] ?? '#9ca3af' }))
+
+    // pm_compliance widget: done vs pending (pie)
+    const pmDone = pmTasks.filter(pm => pm.status === 'Udført').length
+    const pmPending = pmTasks.length - pmDone
+    const pmPie: ChartEntry[] = [
+      { name: 'Udført', value: pmDone, color: '#22c55e' },
+      { name: 'Afventer', value: pmPending, color: '#f59e0b' },
+    ].filter(e => e.value > 0)
+
+    // low_stock widget: empty vs low vs ok (pie)
+    const emptyCount = spareParts.filter(sp => sp.quantity === 0).length
+    const lowCount = spareParts.filter(sp => sp.quantity > 0 && sp.quantity < sp.minQuantity).length
+    const okCount = spareParts.length - emptyCount - lowCount
+    const stockPie: ChartEntry[] = [
+      { name: 'Tomt', value: emptyCount, color: '#ef4444' },
+      { name: 'Lavt', value: lowCount, color: '#f59e0b' },
+      { name: 'OK', value: okCount, color: '#22c55e' },
+    ].filter(e => e.value > 0)
+
+    return { openPie, openBar, overduePie, pmPie, stockPie, totalWOs }
+  }, [workOrders, spareParts, pmTasks])
 
   // ── Chart data ────────────────────────────────────────────────────────────
 
@@ -301,22 +413,30 @@ export default function Dashboard() {
 
       {/* ── KPI Stats Row ── */}
       <div className="grid grid-cols-7 gap-3">
-        <StatCard
+        <WidgetCard
+          widgetId="open"
           label="Aktive AO'er"
           value={active.length}
+          total={widgetChartData.totalWOs}
           accentColor="#3b82f6"
           icon={<ClipboardList size={22} />}
           onClick={() => navigate('/arbejdsordrer')}
+          pieData={widgetChartData.openPie}
+          barData={widgetChartData.openBar}
         />
-        <StatCard
+        <WidgetCard
+          widgetId="overdue"
           label="Forfaldne"
           value={overdue.length}
+          total={active.length}
           accentColor="#ef4444"
           icon={<AlertTriangle size={22} />}
           onClick={() => navigate('/arbejdsordrer')}
           alert
+          pieData={widgetChartData.overduePie}
         />
-        <StatCard
+        <WidgetCard
+          widgetId="critical"
           label="Forfald i dag"
           value={dueToday.length}
           accentColor="#f97316"
@@ -324,34 +444,42 @@ export default function Dashboard() {
           onClick={() => navigate('/arbejdsordrer')}
           alert
         />
-        <StatCard
+        <WidgetCard
+          widgetId="requests"
           label="Anmodninger"
           value={requests.length}
           accentColor="#a855f7"
           icon={<Activity size={22} />}
           onClick={() => navigate('/anmodninger')}
         />
-        <StatCard
+        <WidgetCard
+          widgetId="pm_compliance"
+          label="PM compliance"
+          value={pmCompliance}
+          total={100}
+          accentColor="#22c55e"
+          icon={<TrendingUp size={22} />}
+          onClick={() => navigate('/planlagt')}
+          pieData={widgetChartData.pmPie}
+        />
+        <WidgetCard
+          widgetId="low_stock"
+          label="Lav lager"
+          value={lowStockParts.length}
+          total={spareParts.length}
+          accentColor="#06b6d4"
+          icon={<Package size={22} />}
+          onClick={() => navigate('/reservedele')}
+          pieData={widgetChartData.stockPie}
+        />
+        <WidgetCard
+          widgetId="pm_overdue"
           label="PM forfaldne"
           value={overduePMs.length}
           accentColor="#f59e0b"
           icon={<CalendarCheck size={22} />}
           onClick={() => navigate('/planlagt')}
           alert
-        />
-        <StatCard
-          label="Lav lager"
-          value={lowStockParts.length}
-          accentColor="#06b6d4"
-          icon={<Package size={22} />}
-          onClick={() => navigate('/reservedele')}
-        />
-        <StatCard
-          label="PM compliance"
-          value={`${pmCompliance}%`}
-          accentColor="#22c55e"
-          icon={<TrendingUp size={22} />}
-          onClick={() => navigate('/planlagt')}
         />
       </div>
 

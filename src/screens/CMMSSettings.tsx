@@ -721,6 +721,24 @@ function TabOpslagstabeller() {
 // ─── Tab: Vedligehold og arbejdsordre ─────────────────────────────────────────
 
 function TabVedligehold() {
+  const { companySettings, updateCompanySettings } = useStore()
+  const [form, setForm] = useState({
+    defaultPriority:      companySettings.defaultPriority      ?? 'Normal',
+    defaultDueDays:       companySettings.defaultDueDays        ?? 14,
+    defaultWOType:        companySettings.defaultWOType         ?? 'Forebyggende',
+    woNumberPrefix:       companySettings.woNumberPrefix        ?? 'AO-',
+    defaultPMIntervalDays: companySettings.defaultPMIntervalDays ?? 30,
+    pmWarningDays:        companySettings.pmWarningDays         ?? 7,
+  })
+  const [saved, setSaved] = useState(false)
+  const inp = 'w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500'
+
+  function save() {
+    updateCompanySettings(form)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
   return (
     <div className="max-w-2xl space-y-4">
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
@@ -728,32 +746,45 @@ function TabVedligehold() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Standard prioritet</label>
-            <select className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option>Normal</option>
-              <option>Lav</option>
-              <option>Høj</option>
-              <option>Kritisk</option>
+            <select
+              className={inp}
+              value={form.defaultPriority}
+              onChange={e => setForm(f => ({ ...f, defaultPriority: e.target.value }))}
+            >
+              {['Normal', 'Lav', 'Høj', 'Kritisk'].map(p => <option key={p}>{p}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Standard forfaldstid (dage)</label>
-            <input defaultValue="14" type="number" className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+            <input
+              type="number" min={1}
+              className={inp}
+              value={form.defaultDueDays}
+              onChange={e => setForm(f => ({ ...f, defaultDueDays: Number(e.target.value) }))}
+            />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Standard vedligeholdelses type</label>
-            <select className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              <option>Forebyggende</option>
-              <option>Afhjælpende</option>
-              <option>Inspektion</option>
+            <select
+              className={inp}
+              value={form.defaultWOType}
+              onChange={e => setForm(f => ({ ...f, defaultWOType: e.target.value }))}
+            >
+              {['Forebyggende', 'Afhjælpende', 'Inspektion'].map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Auto-nummerering prefix</label>
-            <input defaultValue="AO-" className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+            <input
+              className={inp}
+              value={form.woNumberPrefix}
+              onChange={e => setForm(f => ({ ...f, woNumberPrefix: e.target.value }))}
+            />
           </div>
         </div>
         <div className="flex justify-end mt-4">
-          <button className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+          {saved && <span className="text-xs text-green-600 dark:text-green-400 font-medium mr-3 self-center">✓ Gemt</span>}
+          <button onClick={save} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
             <Save size={14} /> Gem ændringer
           </button>
         </div>
@@ -764,15 +795,26 @@ function TabVedligehold() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Standard interval (dage)</label>
-            <input defaultValue="30" type="number" className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+            <input
+              type="number" min={1}
+              className={inp}
+              value={form.defaultPMIntervalDays}
+              onChange={e => setForm(f => ({ ...f, defaultPMIntervalDays: Number(e.target.value) }))}
+            />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Forfaldsvarsling (dage før)</label>
-            <input defaultValue="7" type="number" className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+            <input
+              type="number" min={0}
+              className={inp}
+              value={form.pmWarningDays}
+              onChange={e => setForm(f => ({ ...f, pmWarningDays: Number(e.target.value) }))}
+            />
           </div>
         </div>
         <div className="flex justify-end mt-4">
-          <button className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+          {saved && <span className="text-xs text-green-600 dark:text-green-400 font-medium mr-3 self-center">✓ Gemt</span>}
+          <button onClick={save} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
             <Save size={14} /> Gem ændringer
           </button>
         </div>
@@ -784,6 +826,22 @@ function TabVedligehold() {
 // ─── Tab: Gæsteportal ─────────────────────────────────────────────────────────
 
 function TabGaesteportal() {
+  const { companySettings, updateCompanySettings } = useStore()
+  const [welcome, setWelcome] = useState(
+    companySettings.guestPortalWelcome ?? 'Indsend en vedligeholdelsesanmodning her. Vores team behandler din anmodning hurtigst muligt.'
+  )
+  const [confirmation, setConfirmation] = useState(
+    companySettings.guestPortalConfirmation ?? 'Tak for din anmodning! Vi har modtaget den og vender tilbage hurtigst muligt.'
+  )
+  const [saved, setSaved] = useState(false)
+  const ta = 'w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none'
+
+  function save() {
+    updateCompanySettings({ guestPortalWelcome: welcome, guestPortalConfirmation: confirmation })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
   return (
     <div className="max-w-xl">
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-4">
@@ -791,17 +849,19 @@ function TabGaesteportal() {
         <div>
           <label className="block text-xs text-gray-500 mb-1">Velkomsttekst</label>
           <textarea
-            defaultValue="Indsend en vedligeholdelsesanmodning her. Vores team behandler din anmodning hurtigst muligt."
             rows={3}
-            className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+            className={ta}
+            value={welcome}
+            onChange={e => setWelcome(e.target.value)}
           />
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">Bekræftelsestekst</label>
           <textarea
-            defaultValue="Tak for din anmodning! Vi har modtaget den og vender tilbage hurtigst muligt."
             rows={2}
-            className="w-full border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+            className={ta}
+            value={confirmation}
+            onChange={e => setConfirmation(e.target.value)}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -812,8 +872,9 @@ function TabGaesteportal() {
             </div>
           ))}
         </div>
-        <div className="flex justify-end">
-          <button className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+        <div className="flex items-center justify-end gap-3">
+          {saved && <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ Gemt</span>}
+          <button onClick={save} className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
             <Save size={14} /> Gem ændringer
           </button>
         </div>

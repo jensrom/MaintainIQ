@@ -432,4 +432,15 @@ export interface CompanySettings {
   email?: string
   vatNumber?: string
   website?: string
+  // WO defaults
+  defaultPriority?: string
+  defaultDueDays?: number
+  defaultWOType?: string
+  woNumberPrefix?: string
+  // PM defaults
+  defaultPMIntervalDays?: number
+  pmWarningDays?: number
+  // Guest portal
+  guestPortalWelcome?: string
+  guestPortalConfirmation?: string
 }

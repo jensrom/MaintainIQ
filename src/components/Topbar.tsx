@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Bell, ChevronDown, LogOut, User, Settings } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
@@ -7,6 +7,9 @@ import NotificationPanel from './NotificationPanel'
 export default function Topbar() {
   const [showNotifs, setShowNotifs]     = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+
+  // Subscribe to all data slices that getNotifications depends on,
+  // so the badge re-renders reactively when any of them changes.
   const getNotifications = useStore(s => s.getNotifications)
   const auth             = useStore(s => s.auth)
   const users            = useStore(s => s.users)
@@ -14,8 +17,22 @@ export default function Topbar() {
   const logout           = useStore(s => s.logout)
   const navigate         = useNavigate()
 
+  const workOrders   = useStore(s => s.workOrders)
+  const spareParts   = useStore(s => s.spareParts)
+  const pmTasks      = useStore(s => s.pmTasks)
+  const deviations   = useStore(s => s.deviations)
+  const capaRecords  = useStore(s => s.capaRecords)
+  const changeRecords = useStore(s => s.changeRecords)
+  const settings     = useStore(s => s.settings)
+
   const activeUser = auth ? users.find(u => u.id === auth.userId) : null
-  const notifCount = getNotifications().length
+
+  // Recompute badge count whenever any underlying data changes
+  const notifCount = useMemo(
+    () => getNotifications().length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workOrders, spareParts, pmTasks, deviations, capaRecords, changeRecords, settings, getNotifications]
+  )
 
   const panelRef   = useRef<HTMLDivElement>(null)
   const userRef    = useRef<HTMLDivElement>(null)

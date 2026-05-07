@@ -11,7 +11,9 @@ function fmt(dateStr: string) {
 }
 
 export default function GuestPortal() {
-  const { assets, createWorkOrder, workOrders } = useStore()
+  const { assets, createWorkOrder, workOrders, companySettings } = useStore()
+  const welcomeText = companySettings.guestPortalWelcome ?? 'Udfyld formularen for at indberette et problem eller en vedligeholdelsesanmodning.'
+  const confirmText = companySettings.guestPortalConfirmation ?? 'Tak for din anmodning! Vi har modtaget den og vender tilbage hurtigst muligt.'
   const [submitted, setSubmitted] = useState(false)
   const [form, setForm] = useState({
     name: '', email: '', phone: '', description: '', assetId: '', priority: 'Normal' as Priority,
@@ -64,7 +66,7 @@ export default function GuestPortal() {
               <form onSubmit={handleSubmit}>
                 <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">
                   <h2 className="font-semibold text-gray-900 dark:text-gray-100">Ny vedligeholdelsesanmodning</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Udfyld formularen for at indberette et problem eller en vedligeholdelsesanmodning.</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{welcomeText}</p>
                 </div>
                 <div className="p-6 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -123,9 +125,7 @@ export default function GuestPortal() {
               <div className="p-12 text-center">
                 <CheckCircle2 size={48} className="mx-auto mb-4 text-green-500" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Anmodning modtaget!</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                  Din anmodning er registreret og vil blive behandlet af vedligeholdelsesteamet hurtigst muligt.
-                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">{confirmText}</p>
                 <button
                   onClick={reset}
                   className="px-5 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"

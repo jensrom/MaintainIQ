@@ -4,9 +4,10 @@ import {
   isToday, isSameMonth, getDay, addMonths, subMonths, isValid,
 } from 'date-fns'
 import { da } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, X, ClipboardList, CalendarCheck } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, ClipboardList, CalendarCheck, Plus } from 'lucide-react'
 import clsx from 'clsx'
 import { useStore } from '../store'
+import type { Priority, WorkOrderCategory } from '../types'
 
 type ShowMode = 'WO' | 'PM' | 'Begge'
 
@@ -18,11 +19,123 @@ interface CalendarItem {
   isPharma?: boolean
 }
 
+interface QuickWOForm {
+  title: string
+  assetId: string
+  priority: Priority
+  category: WorkOrderCategory
+  description: string
+}
+
+const EMPTY_FORM: QuickWOForm = {
+  title: '',
+  assetId: '',
+  priority: 'Normal',
+  category: 'Afhjælpende',
+  description: '',
+}
+
+function QuickCreateModal({
+  dueDate,
+  onClose,
+  onSave,
+  assets,
+  users,
+}: {
+  dueDate: string
+  onClose: () => void
+  onSave: (form: QuickWOForm) => void
+  assets: { id: string; name: string }[]
+  users: { id: string; name: string }[]
+}) {
+  const [form, setForm] = useState<QuickWOForm>(EMPTY_FORM)
+  const inp = 'w-full text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500'
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.title || !form.assetId) return
+    onSave(form)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-md mx-4"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Ny arbejdsordre</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Forfaldsdato: {format(parseISO(dueDate), 'd. MMMM yyyy', { locale: da })}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={16} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Titel *</label>
+            <input
+              required
+              className={inp}
+              placeholder="Beskriv opgaven kort..."
+              value={form.title}
+              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Aktiv *</label>
+              <select required className={inp} value={form.assetId} onChange={e => setForm(f => ({ ...f, assetId: e.target.value }))}>
+                <option value="">Vælg aktiv...</option>
+                {assets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Prioritet</label>
+              <select className={inp} value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as Priority }))}>
+                {(['Kritisk', 'Høj', 'Normal', 'Lav'] as Priority[]).map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Type</label>
+            <select className={inp} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as WorkOrderCategory }))}>
+              {(['Afhjælpende', 'Forebyggende', 'Inspektion', 'Projekt', 'Rengøring'] as WorkOrderCategory[]).map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Beskrivelse</label>
+            <textarea
+              className={inp}
+              rows={2}
+              placeholder="Valgfri beskrivelse..."
+              value={form.description}
+              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 text-xs rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+              Annuller
+            </button>
+            <button type="submit" className="flex-1 px-4 py-2 text-xs rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors">
+              Opret arbejdsordre
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function CalendarView() {
-  const { workOrders, pmTasks, assets } = useStore()
+  const { workOrders, pmTasks, assets, users, createWorkOrder } = useStore()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [showMode, setShowMode] = useState<ShowMode>('Begge')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [quickCreateDate, setQuickCreateDate] = useState<string | null>(null)
 
   // Build a map: dateStr → items[]
   const itemsByDate = useMemo(() => {
@@ -69,6 +182,27 @@ export default function CalendarView() {
     setSelectedDate(dateStr === selectedDate ? null : dateStr)
   }
 
+  function handleQuickCreate(dateStr: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    setQuickCreateDate(dateStr)
+  }
+
+  function handleSaveQuickWO(form: QuickWOForm) {
+    if (!quickCreateDate) return
+    createWorkOrder({
+      title: form.title,
+      assetId: form.assetId,
+      assigneeId: null,
+      status: 'Åben',
+      priority: form.priority,
+      category: form.category,
+      dueDate: quickCreateDate,
+      description: form.description,
+      isPharma: false,
+    })
+    setQuickCreateDate(null)
+  }
+
   const selectedItems = selectedDate ? (itemsByDate[selectedDate] ?? []) : []
 
   const PRIORITY_DOT: Record<string, string> = {
@@ -80,6 +214,15 @@ export default function CalendarView() {
 
   return (
     <div className="p-6">
+      {quickCreateDate && (
+        <QuickCreateModal
+          dueDate={quickCreateDate}
+          onClose={() => setQuickCreateDate(null)}
+          onSave={handleSaveQuickWO}
+          assets={assets}
+          users={users}
+        />
+      )}
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -157,7 +300,7 @@ export default function CalendarView() {
                   key={dateStr}
                   onClick={() => handleDayClick(dateStr)}
                   className={clsx(
-                    'min-h-[80px] border-b border-r border-gray-50 dark:border-gray-800/50 p-1.5 cursor-pointer transition-colors',
+                    'group min-h-[80px] border-b border-r border-gray-50 dark:border-gray-800/50 p-1.5 cursor-pointer transition-colors',
                     isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/40'
                   )}
                 >
@@ -168,9 +311,18 @@ export default function CalendarView() {
                     )}>
                       {format(day, 'd')}
                     </span>
-                    {items.length > 2 && (
-                      <span className="text-[10px] text-gray-400">+{items.length - 2}</span>
-                    )}
+                    <div className="flex items-center gap-0.5">
+                      {items.length > 2 && (
+                        <span className="text-[10px] text-gray-400">+{items.length - 2}</span>
+                      )}
+                      <button
+                        onClick={e => handleQuickCreate(dateStr, e)}
+                        title="Opret arbejdsordre"
+                        className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all"
+                      >
+                        <Plus size={11} />
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-0.5">
                     {items.slice(0, 2).map(item => (
@@ -202,11 +354,22 @@ export default function CalendarView() {
                 ? format(parseISO(selectedDate), 'd. MMMM yyyy', { locale: da })
                 : 'Vælg en dato'}
             </h3>
-            {selectedDate && (
-              <button onClick={() => setSelectedDate(null)} className="text-gray-400 hover:text-gray-600">
-                <X size={14} />
-              </button>
-            )}
+            <div className="flex items-center gap-1">
+              {selectedDate && (
+                <>
+                  <button
+                    onClick={() => setQuickCreateDate(selectedDate)}
+                    title="Opret arbejdsordre på denne dato"
+                    className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                  >
+                    <Plus size={14} />
+                  </button>
+                  <button onClick={() => setSelectedDate(null)} className="p-1 rounded text-gray-400 hover:text-gray-600 transition-colors">
+                    <X size={14} />
+                  </button>
+                </>
+              )}
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3">
             {!selectedDate && (

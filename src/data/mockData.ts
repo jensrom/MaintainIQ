@@ -1187,6 +1187,14 @@ export const COMPANY_SETTINGS: CompanySettings = {
   email: 'maintenance@horsens-pharma.dk',
   vatNumber: 'DK 12345678',
   website: 'www.horsens-pharma.dk',
+  defaultPriority: 'Normal',
+  defaultDueDays: 14,
+  defaultWOType: 'Forebyggende',
+  woNumberPrefix: 'AO-',
+  defaultPMIntervalDays: 30,
+  pmWarningDays: 7,
+  guestPortalWelcome: 'Indsend en vedligeholdelsesanmodning her. Vores team behandler din anmodning hurtigst muligt.',
+  guestPortalConfirmation: 'Tak for din anmodning! Vi har modtaget den og vender tilbage hurtigst muligt.',
 }
 
 const ALL_PERMISSIONS: Permission[] = [
